@@ -279,9 +279,9 @@ No specialized hardware required. The system operates entirely through web brows
 |---|---|---|---|---|
 | MM-NF-001 | The system shall process a 30-minute audio stub and generate minutes within 60 seconds | Performance | High | 90th percentile processing time ≤ 60s in test. Test: TC-PERF-01 |
 | MM-NF-002 | The web UI shall be responsive and usable on desktop browsers with minimum resolution 1024×768 | Usability | Medium | UI renders correctly on Chrome, Firefox, and Edge at 1024px. Test: TC-UX-01 |
-| MM-NF-003 | The system shall support at least 10 concurrent users uploading and processing simultaneously | Scalability | Medium | Load test with 10 concurrent uploads completes without errors. Test: TC-PERF-02 |
+| MM-NF-003 | The system shall support at least 5 concurrent users uploading and processing simultaneously | Scalability | Medium | Load test with 5 concurrent uploads completes without errors. Test: TC-PERF-02 |
 | MM-NF-004 | All user passwords shall be hashed using bcrypt with salt and never stored in plaintext | Security | High | Database audit confirms no plaintext passwords. Test: TC-SEC-01 |
-| MM-NF-005 | The system shall maintain 99% uptime during the evaluation/demo period (excluding planned maintenance) | Reliability | Medium | Uptime monitoring logs show ≥99%. Test: Ops monitoring |
+| MM-NF-005 | The system shall be available and functional during the scheduled demo/evaluation session, with no unplanned downtime | Reliability | Medium | System is accessible and responsive throughout the demo. Test: Manual verification during demo |
 | MM-NF-006 | System logs shall include timestamped events for all uploads, processing, and errors | Auditability | Medium | Log files contain structured entries with ISO timestamps. Test: TC-OPS-01 |
 
 ### 5.1 Security
@@ -448,9 +448,9 @@ No specialized hardware required. The system operates entirely through web brows
 | MM-F-017 | Input meeting metadata | 4.6 | Frontend | TC-AUTH-02 | N | |
 | MM-NF-001 | Processing time ≤ 60s | 5 | Pipeline | TC-PERF-01 | N | |
 | MM-NF-002 | Responsive UI on desktop | 5 | Frontend | TC-UX-01 | N | |
-| MM-NF-003 | 10 concurrent users | 5 | Server | TC-PERF-02 | N | |
+|MM-NF-003 | 5 concurrent users | Section 5 | Server | TC-PERF-02 | N ||
 | MM-NF-004 | Passwords hashed (bcrypt) | 5 | AuthModule | TC-SEC-01 | N | |
-| MM-NF-005 | 99% uptime | 5 | Infrastructure | Ops monitoring | N | |
+|MM-NF-005 | Availability during scheduled evaluation/demo | Section 5 | Infrastructure | Ops monitoring | N ||
 | MM-NF-006 | Timestamped logs | 5 | Server | TC-OPS-01 | N | |
 | MM-SR-001 | HTTPS / TLS 1.2+ | 5.1.2 | Server | TC-SEC-02 | N | |
 | MM-SR-002 | bcrypt password hashing | 5.1.2 | AuthModule | TC-SEC-03 | N | |
