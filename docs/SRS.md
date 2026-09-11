@@ -169,19 +169,17 @@ The system provides a web-based UI with the following pages:
 
 | Page | Description |
 |---|---|
-| **Login / Register** | Authentication forms with email and password |
-| **Dashboard** | Overview of recent meetings and quick-upload button |
-| **Upload Page** | Drag-and-drop audio file upload with meeting title, date, and participants fields |
-| **Processing View** | Progress indicator showing transcription and extraction status |
-| **Minutes Viewer** | Display generated minutes with editable action items |
-| **History Page** | Searchable list of past meeting minutes with date filters |
-| **PDF Preview** | Preview and download generated PDF |
+| **Home Page** | Allows the user to upload a meeting audio file and start processing. |
+| **History Page** | Displays previously processed meetings and allows the user to select a meeting. |
+| **Minutes Viewer** | Displays the generated meeting minutes, including extracted action items, assignees, and deadlines. |
+| **PDF Export** | Allows the user to export the generated meeting minutes as a PDF. |
 
 **UI Requirements:**
-- Responsive design for desktop browsers (minimum 1024px width)
-- Clear navigation with a top menu bar
-- Form validation with inline error messages
-- Accessible color contrast (WCAG 2.1 AA compliant)
+-Clear navigation between Home and History pages.
+- Simple and intuitive controls for uploading and processing audio.
+- Clear display of generated meeting minutes.
+- Appropriate error messages for invalid or unsupported audio files.
+- Accessible and readable interface.
 
 ### 3.2 Hardware Interfaces
 
@@ -332,96 +330,48 @@ No specialized hardware required. The system operates entirely through web brows
 
 ## 7. System Models and Diagrams
 
-### 7.1 UML Use-Case Diagram 1 — Core Meeting Minutes Workflow
+### 7.1 UML Use-Case Diagram – Meeting Minutes System
 
-> **Actors:** Meeting Organizer, System (Processing Pipeline)
+The use-case diagram illustrates the main interactions between the user
+and the Automated Meeting Minutes Generator.
 
-```
-+------------------------------------------------------+
-|          Automated Meeting Minutes Generator          |
-|                                                       |
-|   +------------------+     +-----------------------+  |
-|   | Upload Audio     |     | Transcribe Audio      |  |
-|   +------------------+     | (Stub)                |  |
-|           |                +-----------------------+  |
-|           |                         |                 |
-|           v                         v                 |
-|   +------------------+     +-----------------------+  |
-|   | Enter Meeting    |     | Extract Action Items  |  |
-|   | Metadata         |     +-----------------------+  |
-|   +------------------+              |                 |
-|                                     v                 |
-|                            +-----------------------+  |
-|                            | Generate Minutes      |  |
-|                            +-----------------------+  |
-|                                     |                 |
-|                                     v                 |
-|                            +-----------------------+  |
-|                            | Export as PDF          |  |
-|                            +-----------------------+  |
-+------------------------------------------------------+
-         ^                            ^
-         |                            |
-   +-----------+               +-----------+
-   | Meeting   |               | System    |
-   | Organizer |               | (Auto)    |
-   +-----------+               +-----------+
-```
+> **Actors:** User
+
+![UML Use-Case Diagram](diagrams/umlcasediagram1 2.png)
 
 **Use Case Descriptions:**
 
 | Use Case | Actor | Precondition | Main Flow | Postcondition |
 |---|---|---|---|---|
-| **Upload Audio** | Meeting Organizer | User is logged in | 1. User navigates to Upload page. 2. User selects audio file. 3. User enters meeting title, date, participants. 4. User clicks "Upload". 5. System validates file format and size. 6. System stores file and triggers processing. | Audio file stored; processing begins |
-| **Extract Action Items** | System | Transcription complete | 1. System receives transcribed text. 2. System applies keyword patterns. 3. System identifies action items, deadlines, assignees. 4. System stores extracted data. | Extracted items ready for review |
-| **Generate Minutes** | System | Extraction complete | 1. System loads minutes template. 2. System populates template with meeting metadata and extracted items. 3. System renders Markdown output. | Structured minutes document generated |
-| **Export as PDF** | Meeting Organizer | Minutes generated | 1. User clicks "Export PDF". 2. System converts Markdown/HTML to PDF. 3. System provides download link. | PDF file available for download |
+| **Upload Audio** | User | User is on the home page | 1. User selects an audio file. 2. System validates the file. 3. User starts the upload and processing. | Audio file is uploaded and ready for processing. |
+| **Transcribe Audio** | System | Audio file has been uploaded | 1. System processes the audio. 2. System converts the speech into text. | Meeting audio is converted into text. |
+| **Extract Action Items** | System | Transcription is available | 1. System analyzes the transcription. 2. System identifies action items. 3. System extracts related information. | Action items are identified from the meeting. |
+| **Extract Assignees** | System | Action items have been identified | 1. System analyzes the extracted action items. 2. System identifies the person assigned to each item. | Assignees are associated with action items where available. |
+| **Extract Deadlines** | System | Action items have been identified | 1. System analyzes the meeting text. 2. System identifies mentioned deadlines. | Deadlines are associated with relevant action items where available. |
+| **Generate Minutes** | System | Required meeting information has been extracted | 1. System organizes the extracted information. 2. System formats it into meeting minutes. | Structured meeting minutes are generated. |
+| **View Meeting History** | User | Previous meetings exist | 1. User opens the History section. 2. System displays previous meetings. | User can view available meeting records. |
+| **Select Meeting** | User | Meeting history is displayed | 1. User selects a meeting. 2. System retrieves the selected meeting. | Selected meeting details are displayed. |
+| **Search Past Minutes** | User | Past meeting records exist | 1. User enters a search term. 2. System searches stored meeting records. 3. Matching meetings are displayed. | Relevant past meetings are displayed. |
+| **View Minutes** | User | Meeting minutes are available | 1. User selects a meeting. 2. System displays its generated minutes. | User can read the meeting minutes. |
+| **Export Minutes as PDF** | User | Meeting minutes are displayed | 1. User selects the export option. 2. System converts the minutes into PDF format. 3. System provides the PDF for download. | PDF version of the meeting minutes is available. |
 
-### 7.2 UML Use-Case Diagram 2 — User Management & History
 
-> **Actors:** Meeting Organizer, System Administrator
+### 7.2 UML Use-Case Diagram 2 — – Meeting History and Minutes
 
-```
-+------------------------------------------------------+
-|          Automated Meeting Minutes Generator          |
-|                                                       |
-|   +------------------+     +-----------------------+  |
-|   | Register Account |     | Manage Users          |  |
-|   +------------------+     +-----------------------+  |
-|                                                       |
-|   +------------------+     +-----------------------+  |
-|   | Login            |     | View System Logs      |  |
-|   +------------------+     +-----------------------+  |
-|                                                       |
-|   +------------------+                                |
-|   | View Meeting     |                                |
-|   | History          |                                |
-|   +------------------+                                |
-|                                                       |
-|   +------------------+                                |
-|   | Search Minutes   |                                |
-|   +------------------+                                |
-|                                                       |
-|   +------------------+                                |
-|   | Edit Action Items|                                |
-|   +------------------+                                |
-+------------------------------------------------------+
-         ^                            ^
-         |                            |
-   +-----------+               +-----------+
-   | Meeting   |               | System    |
-   | Organizer |               | Admin     |
-   +-----------+               +-----------+
-```
+The use-case diagram represents how the User accesses previous meeting records, searches past minutes, views selected meeting minutes, and exports the minutes as a PDF.
+
+**Actor:** User
+![UML Use-Case Diagram 2](diagrams/umlcasedaigram2 2.png)
 
 **Use Case Descriptions:**
 
 | Use Case | Actor | Precondition | Main Flow | Postcondition |
 |---|---|---|---|---|
-| **Register Account** | Meeting Organizer | None | 1. User navigates to Register. 2. Enters email and password. 3. System validates input. 4. System creates account with hashed password. | Account created; user can login |
-| **View Meeting History** | Meeting Organizer | User logged in | 1. User navigates to History. 2. System displays paginated list of past meetings. 3. User clicks a meeting to view details. | Meeting minutes displayed |
-| **Search Minutes** | Meeting Organizer | User logged in, meetings exist | 1. User enters keyword or date range. 2. System queries database. 3. System displays matching results. | Search results shown |
-| **Edit Action Items** | Meeting Organizer | Minutes generated | 1. User views generated minutes. 2. User clicks "Edit" on an action item. 3. User modifies text/assignee/deadline. 4. User saves changes. | Updated minutes saved |
+| **View Meeting History** | User | Previous meeting records are available | 1. User opens the meeting history. 2. System displays the available past meetings. 3. User can select a meeting. | Meeting history is displayed to the user. |
+| **Select Meeting** | User | Meeting history is displayed | 1. User selects a meeting from the history. 2. System retrieves the selected meeting details. | The selected meeting is available for viewing. |
+| **Search Past Minutes** | User | Previous meeting records are available | 1. User enters a search term. 2. System searches the stored meeting records. 3. System displays matching results. | Matching past meetings are displayed. |
+| **View Minutes** | User | A meeting has been selected and minutes are available | 1. User opens the selected meeting. 2. System retrieves the generated minutes. 3. System displays the minutes. | User can view the selected meeting minutes. |
+| **Export Minutes as PDF** | User | Meeting minutes are being viewed | 1. User selects the export option. 2. System converts the minutes into PDF format. 3. System provides the PDF for download. | The meeting minutes are available as a PDF. |
 
 ---
 
