@@ -337,7 +337,7 @@ and the Automated Meeting Minutes Generator.
 
 > **Actors:** User
 
-![UML Use-Case Diagram](diagrams/umlcasediagram1 2.png)
+![UML Use-Case Diagram](diagrams/umlcasediagram1.png)
 
 **Use Case Descriptions:**
 
@@ -361,7 +361,7 @@ and the Automated Meeting Minutes Generator.
 The use-case diagram represents how the User accesses previous meeting records, searches past minutes, views selected meeting minutes, and exports the minutes as a PDF.
 
 **Actor:** User
-![UML Use-Case Diagram 2](diagrams/umlcasedaigram2 2.png)
+![UML Use-Case Diagram 2](diagrams/umlcasedaigram2.png)
 
 **Use Case Descriptions:**
 
