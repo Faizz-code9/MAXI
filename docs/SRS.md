@@ -206,66 +206,76 @@ No specialized hardware required. The system operates entirely through web brows
 
 ## 4. System Features (Functional Requirements — Detailed)
 
-> **Note:** Each requirement includes acceptance criteria and a test case reference. IDs follow the format `MM-F-###`.
+> Note: Each requirement includes acceptance criteria and a test case reference. IDs follow the format `MM-F-###`.
 
 ### 4.1 Audio Upload & Validation
 
-**Description:** Allow users to upload meeting audio files with metadata. Validate file format, MIME type, and size before accepting.
+Description: Allow users to upload meeting audio files with metadata. Validate file format, MIME type, and size before accepting.
 
-| Req ID | Requirement (The system shall…) | Type | Priority | Source | Acceptance Criteria / Test Ref | Dependencies |
-|---|---|---|---|---|---|---|
-| MM-F-001 | Accept audio file uploads in MP3, WAV, and M4A formats via the web interface | Functional | High | User | AC: Upload succeeds for valid MP3/WAV/M4A files. Test: TC-UP-01 | File system storage |
-| MM-F-002 | Validate uploaded file format (MIME type check) and reject unsupported formats with a clear error message | Functional | High | Security | AC: Non-audio files (e.g., .exe, .txt) are rejected with error "Unsupported file format". Test: TC-UP-02 | MIME type library |
-| MM-F-003 | Reject files exceeding 100 MB with an appropriate error message | Functional | Medium | Performance | AC: Files >100 MB show error "File size exceeds 100 MB limit". Test: TC-UP-03 | Server config |
+Req ID | Requirement (The system shall…) | Type | Priority | Source | Acceptance Criteria / Test Ref | Dependencies
+--- | --- | --- | --- | --- | --- | ---
+MM-F-001 | Accept audio file uploads in MP3, WAV, and M4A formats via the web interface | Functional | High | User | AC: Upload succeeds for valid MP3/WAV/M4A files. Test: TC-UP-01 | File system storage
+MM-F-002 | Validate uploaded file format and MIME type and reject unsupported or non-audio files with a clear error message | Functional | High | Security | AC: Non-audio or unsupported files are rejected and are not passed to the processing pipeline. Test: TC-UP-02 | MIME type library
+MM-F-003 | Reject files exceeding 100 MB with an appropriate error message | Functional | Medium | Performance | AC: Files greater than 100 MB are rejected and are not processed. Test: TC-UP-03 | Server config
 
 ### 4.2 Transcription
 
-**Description:** Convert uploaded audio to text using a stub transcription module. Display progress to the user.
+Description: Convert uploaded audio to text using the configured stub transcription module and display processing status to the user.
 
-| Req ID | Requirement (The system shall…) | Type | Priority | Source | Acceptance Criteria / Test Ref | Dependencies |
-|---|---|---|---|---|---|---|
-| MM-F-004 | Transcribe uploaded audio to text using the stub transcription engine | Functional | High | Core | AC: Stub returns sample transcription text for any valid audio. Test: TC-TR-01 | Stub module |
-| MM-F-005 | Display a progress indicator during the transcription process | Functional | Medium | UX | AC: User sees "Processing…" with progress bar during transcription. Test: TC-TR-02 | Frontend |
+Req ID | Requirement (The system shall…) | Type | Priority | Source | Acceptance Criteria / Test Ref | Dependencies
+--- | --- | --- | --- | --- | --- | ---
+MM-F-004 | Convert an accepted meeting audio file into a textual transcript using the configured stub transcription engine | Functional | High | Core | AC: Given a valid uploaded audio file, the transcription module returns a non-empty transcript associated with the meeting. Test: TC-TR-01 | Stub module
+MM-F-005 | Display the processing state to the user while transcription and subsequent text processing are being performed | Functional | Medium | UX | AC: User sees a processing state while the pipeline is running and a completion or error state when processing finishes. Test: TC-TR-02 | Frontend + processing pipeline
 
-### 4.3 Action Item & Information Extraction
+### 4.3 Text Preprocessing
 
-**Description:** Parse transcribed text to extract action items, deadlines, assignees, and key discussion points using keyword patterns and regular expressions.
+Description: Prepare the generated transcript for reliable information extraction while preserving its semantic content.
 
-| Req ID | Requirement (The system shall…) | Type | Priority | Source | Acceptance Criteria / Test Ref | Dependencies |
-|---|---|---|---|---|---|---|
-| MM-F-006 | Extract action items from transcribed text using keyword patterns (e.g., "action:", "TODO", "task:", "need to", "follow up") | Functional | High | Core | AC: All sentences containing keyword patterns are identified as action items. Test: TC-EX-01 | Regex / NLP module |
-| MM-F-007 | Extract deadline dates from transcribed text using date pattern matching (e.g., "by Friday", "due 15th September", "deadline: next week") | Functional | High | Core | AC: Date expressions near action items are correctly parsed. Test: TC-EX-02 | Date parser |
-| MM-F-008 | Extract assignee names from transcribed text (e.g., "assigned to John", "Alice will handle") | Functional | High | Core | AC: Names following assignment keywords are extracted. Test: TC-EX-03 | NLP / regex |
-| MM-F-009 | Extract key decisions from transcribed text using decision keywords (e.g., "decided", "agreed", "approved", "resolution") | Functional | Medium | Core | AC: Decision statements are identified and listed separately. Test: TC-EX-04 | Regex module |
+Req ID | Requirement (The system shall…) | Type | Priority | Source | Acceptance Criteria / Test Ref | Dependencies
+--- | --- | --- | --- | --- | --- | ---
+MM-F-018 | Normalize the transcribed text before information extraction by handling unnecessary whitespace, line breaks, and case variations where appropriate without changing the semantic content | Functional | High | Core | AC: Equivalent transcripts with inconsistent whitespace, line breaks, or capitalization produce a normalized representation suitable for extraction while preserving their meaning. Test: TC-TP-01 | Text processing module
 
-### 4.4 Document Generation
+### 4.4 Action Item & Information Extraction
 
-**Description:** Assemble extracted information into a structured meeting minutes document using templates, and export as PDF.
+Description: Parse the processed transcript to extract action items, deadlines, assignees, key decisions, and discussion points using predefined keyword patterns and regular expressions.
 
-| Req ID | Requirement (The system shall…) | Type | Priority | Source | Acceptance Criteria / Test Ref | Dependencies |
-|---|---|---|---|---|---|---|
-| MM-F-010 | Generate a structured meeting minutes document in Markdown format containing: title, date, participants, summary, discussion points, decisions, and action items | Functional | High | Core | AC: Generated Markdown contains all required sections with correct data. Test: TC-GEN-01 | Jinja2 templates |
-| MM-F-011 | Export the generated meeting minutes as a downloadable PDF file | Functional | High | User | AC: User clicks "Export PDF" and receives a valid, formatted PDF. Test: TC-GEN-02 | WeasyPrint |
-| MM-F-012 | Allow users to edit extracted action items (text, assignee, deadline) before finalizing the minutes | Functional | Medium | User | AC: User can modify action item fields and save; final minutes reflect edits. Test: TC-GEN-03 | Frontend + API |
+Req ID | Requirement (The system shall…) | Type | Priority | Source | Acceptance Criteria / Test Ref | Dependencies
+--- | --- | --- | --- | --- | --- | ---
+MM-F-006 | Identify action items from the processed transcript using predefined task indicators and action-oriented patterns such as "action:", "TODO", "task:", "need to", "will", "assigned to", "follow up", and "responsible for" | Functional | High | Core | AC: Given a transcript containing explicit task statements, each applicable task is identified as a separate action item. A sentence shall not be classified as an action item solely because it contains a common keyword without an actionable context. Test: TC-EX-01 | Text preprocessing + ExtractorModule
+MM-F-007 | Associate recognizable deadline expressions with the relevant action item, including expressions such as "by Friday", "due on 15 September", "before next Monday", and "within two weeks" | Functional | High | Core | AC: When an action item contains or is directly associated with a recognizable deadline expression, the deadline is stored with that action item. When no deadline is present, the deadline remains empty rather than being fabricated. Test: TC-EX-02 | Date parser + ExtractorModule
+MM-F-008 | Identify the assignee associated with an action item using assignment patterns such as "assigned to John", "John will handle", "Alice is responsible for", and "Rahul needs to" | Functional | High | Core | AC: Given an action item with an identifiable assignee, the person's name is associated with that action item. When no assignee can be identified, the assignee remains empty or is marked "Unassigned". Test: TC-EX-03 | NLP / regex
+MM-F-009 | Identify explicit decision statements from the processed transcript using decision patterns such as "decided", "agreed", "approved", "resolved", and "it was decided that" | Functional | Medium | Core | AC: Given a transcript containing explicit decision statements, the system extracts and stores the decision separately from action items and general discussion. Test: TC-EX-04 | Regex module
+MM-F-019 | Identify and extract key discussion points from the processed transcript and store them separately from action items and decisions | Functional | Medium | Core | AC: Given transcript segments containing discussion topics, the system produces one or more discussion-point entries without incorrectly classifying explicit decisions or action items as discussion points. Test: TC-EX-05 | ExtractorModule
+MM-F-020 | Return a valid empty extraction result when no action items, deadlines, assignees, decisions, or discussion points can be identified instead of generating unsupported information | Functional | High | Reliability | AC: Given a transcript containing no recognizable extractable information, the extraction process completes successfully and returns empty collections for unavailable categories. Test: TC-EX-06 | ExtractorModule
 
-### 4.5 Meeting History & Search
+### 4.5 Document Generation
 
-**Description:** Store meeting minutes persistently and allow users to browse and search past meetings.
+Description: Assemble extracted information into a structured meeting minutes document using templates and provide PDF export.
 
-| Req ID | Requirement (The system shall…) | Type | Priority | Source | Acceptance Criteria / Test Ref | Dependencies |
-|---|---|---|---|---|---|---|
-| MM-F-013 | Store meeting minutes with metadata (title, date, participants, creation timestamp) in the database | Functional | High | Core | AC: After generation, meeting record is persisted and retrievable. Test: TC-HIST-01 | SQLite / ORM |
-| MM-F-014 | Display a history page listing all past meeting minutes sorted by date (newest first) | Functional | Medium | User | AC: History page loads with paginated list of past meetings. Test: TC-HIST-02 | Frontend + API |
-| MM-F-015 | Allow users to search past minutes by keyword or date range | Functional | Medium | User | AC: Search returns matching meetings; no results shows "No meetings found". Test: TC-HIST-03 | DB query |
+Req ID | Requirement (The system shall…) | Type | Priority | Source | Acceptance Criteria / Test Ref | Dependencies
+--- | --- | --- | --- | --- | --- | ---
+MM-F-010 | Generate a structured meeting minutes document in Markdown format containing title, date, participants, summary, discussion points, decisions, and action items | Functional | High | Core | AC: Generated Markdown contains all required sections with the corresponding meeting data. Test: TC-GEN-01 | Jinja2 templates
+MM-F-011 | Export the generated meeting minutes as a downloadable PDF file | Functional | High | User | AC: User selects "Export PDF" and receives a valid, readable, formatted PDF containing the current meeting minutes. Test: TC-GEN-02 | WeasyPrint
+MM-F-012 | Allow users to edit extracted action items including action text, assignee, and deadline before finalizing the minutes | Functional | Medium | User | AC: User can modify an action-item field, save the change, and observe the updated value in the final meeting minutes. Test: TC-GEN-03 | Frontend + API
 
-### 4.6 User Authentication & Meeting Setup
+### 4.6 Meeting History & Search
 
-**Description:** Allow users to register, login, and configure meeting metadata before processing.
+Description: Store meeting minutes persistently and allow users to browse and search past meetings.
 
-| Req ID | Requirement (The system shall…) | Type | Priority | Source | Acceptance Criteria / Test Ref | Dependencies |
-|---|---|---|---|---|---|---|
-| MM-F-016 | Allow users to register with email and password, and login to access the system | Functional | High | Security | AC: Valid credentials grant access; invalid credentials show error. Test: TC-AUTH-01 | Auth module |
-| MM-F-017 | Allow users to input meeting title, date, and participant names before or during upload | Functional | Medium | User | AC: Meeting metadata fields are saved with the meeting record. Test: TC-AUTH-02 | Frontend form |
+Req ID | Requirement (The system shall…) | Type | Priority | Source | Acceptance Criteria / Test Ref | Dependencies
+--- | --- | --- | --- | --- | --- | ---
+MM-F-013 | Store meeting minutes with metadata including title, date, participants, and creation timestamp in the database | Functional | High | Core | AC: After successful generation, the meeting record and its minutes are stored and can be retrieved later. Test: TC-HIST-01 | SQLite / ORM
+MM-F-014 | Display a history page listing past meeting minutes sorted by date with the newest meetings first | Functional | Medium | User | AC: History page displays previously generated meetings and allows the user to open an individual meeting record. Test: TC-HIST-02 | Frontend + API
+MM-F-015 | Allow users to search past meeting minutes by keyword or date range | Functional | Medium | User | AC: Search returns meetings matching the supplied criteria; when no meetings match, an appropriate no-results message is displayed. Test: TC-HIST-03 | DB query
+
+### 4.7 User Authentication & Meeting Setup
+
+Description: Allow users to register, log in, and configure meeting metadata before processing.
+
+Req ID | Requirement (The system shall…) | Type | Priority | Source | Acceptance Criteria / Test Ref | Dependencies
+--- | --- | --- | --- | --- | --- | ---
+MM-F-016 | Allow users to register with an email address and password and log in using valid credentials | Functional | High | Security | AC: Valid registration creates an account; valid credentials grant access; invalid credentials are rejected with an appropriate error. Test: TC-AUTH-01 | Auth module
+MM-F-017 | Allow users to input meeting title, date, and participant names before or during audio upload | Functional | Medium | User | AC: Supplied meeting metadata is validated and stored with the corresponding meeting record. Test: TC-AUTH-02 | Frontend form
 
 ---
 
@@ -377,40 +387,43 @@ The use-case diagram represents how the User accesses previous meeting records, 
 
 ## 8. Requirements Traceability Matrix (RTM)
 
-| Req ID | Requirement (Short) | Section Ref | Module | Test Case(s) | Status (N/P/A) | Comments |
-|---|---|---|---|---|---|---|
-| MM-F-001 | Upload audio files (MP3, WAV, M4A) | 4.1 | UploadModule | TC-UP-01 | N | |
-| MM-F-002 | Validate file format (MIME check) | 4.1 | UploadModule | TC-UP-02 | N | |
-| MM-F-003 | Reject files > 100 MB | 4.1 | UploadModule | TC-UP-03 | N | |
-| MM-F-004 | Transcribe audio (stub) | 4.2 | TranscriptionModule | TC-TR-01 | N | |
-| MM-F-005 | Show transcription progress | 4.2 | Frontend | TC-TR-02 | N | |
-| MM-F-006 | Extract action items (keywords) | 4.3 | ExtractorModule | TC-EX-01 | N | |
-| MM-F-007 | Extract deadlines (date patterns) | 4.3 | ExtractorModule | TC-EX-02 | N | |
-| MM-F-008 | Extract assignee names | 4.3 | ExtractorModule | TC-EX-03 | N | |
-| MM-F-009 | Extract key decisions | 4.3 | ExtractorModule | TC-EX-04 | N | |
-| MM-F-010 | Generate Markdown minutes | 4.4 | GeneratorModule | TC-GEN-01 | N | |
-| MM-F-011 | Export minutes as PDF | 4.4 | GeneratorModule | TC-GEN-02 | N | |
-| MM-F-012 | Edit action items before finalizing | 4.4 | Frontend + API | TC-GEN-03 | N | |
-| MM-F-013 | Store minutes with metadata | 4.5 | DatabaseModule | TC-HIST-01 | N | |
-| MM-F-014 | Display meeting history | 4.5 | Frontend + API | TC-HIST-02 | N | |
-| MM-F-015 | Search past minutes | 4.5 | Frontend + API | TC-HIST-03 | N | |
-| MM-F-016 | User registration and login | 4.6 | AuthModule | TC-AUTH-01 | N | |
-| MM-F-017 | Input meeting metadata | 4.6 | Frontend | TC-AUTH-02 | N | |
-| MM-NF-001 | Processing time ≤ 60s | 5 | Pipeline | TC-PERF-01 | N | |
-| MM-NF-002 | Responsive UI on desktop | 5 | Frontend | TC-UX-01 | N | |
-|MM-NF-003 | 5 concurrent users | Section 5 | Server | TC-PERF-02 | N ||
-| MM-NF-004 | Passwords hashed (bcrypt) | 5 | AuthModule | TC-SEC-01 | N | |
-|MM-NF-005 | Availability during scheduled evaluation/demo | Section 5 | Infrastructure | Ops monitoring | N ||
-| MM-NF-006 | Timestamped logs | 5 | Server | TC-OPS-01 | N | |
-| MM-SR-001 | HTTPS / TLS 1.2+ | 5.1.2 | Server | TC-SEC-02 | N | |
-| MM-SR-002 | bcrypt password hashing | 5.1.2 | AuthModule | TC-SEC-03 | N | |
-| MM-SR-003 | 30-min session timeout | 5.1.2 | AuthModule | TC-SEC-04 | N | |
-| MM-SR-004 | Input sanitization (SQLi, XSS) | 5.1.2 | Server | TC-SEC-05 | N | |
-| MM-SR-005 | MIME type restriction on uploads | 5.1.2 | UploadModule | TC-SEC-06 | N | |
-| MM-SR-006 | UUID filenames (path traversal prevention) | 5.1.2 | UploadModule | TC-SEC-07 | N | |
+Req ID | Requirement (Short) | Section Ref | Module | Test Case(s) | Status (N/P/A) | Comments
+--- | --- | --- | --- | --- | --- | ---
+MM-F-001 | Upload audio files (MP3, WAV, M4A) | 4.1 | UploadModule | TC-UP-01 | N |
+MM-F-002 | Validate file format and MIME type | 4.1 | UploadModule | TC-UP-02 | N | Reject unsupported/non-audio files
+MM-F-003 | Reject files > 100 MB | 4.1 | UploadModule | TC-UP-03 | N | File-size validation
+MM-F-004 | Transcribe audio using stub engine | 4.2 | TranscriptionModule | TC-TR-01 | N | Stub transcription
+MM-F-005 | Display processing status | 4.2 | Frontend + Processing Pipeline | TC-TR-02 | N | Transcription and extraction status
+MM-F-006 | Extract action items | 4.4 | ExtractorModule | TC-EX-01 | N | Pattern/context-based extraction
+MM-F-007 | Associate deadlines with action items | 4.4 | ExtractorModule | TC-EX-02 | N | Deadline/date expression parsing
+MM-F-008 | Extract action-item assignees | 4.4 | ExtractorModule | TC-EX-03 | N | Assignment/name extraction
+MM-F-009 | Extract key decisions | 4.4 | ExtractorModule | TC-EX-04 | N | Decision-pattern extraction
+MM-F-010 | Generate Markdown meeting minutes | 4.5 | GeneratorModule | TC-GEN-01 | N | Template-based generation
+MM-F-011 | Export meeting minutes as PDF | 4.5 | GeneratorModule | TC-GEN-02 | N | PDF generation and download
+MM-F-012 | Edit action-item fields | 4.5 | Frontend + API | TC-GEN-03 | N | User correction before finalization
+MM-F-013 | Store minutes with metadata | 4.6 | DatabaseModule | TC-HIST-01 | N | Persistent meeting storage
+MM-F-014 | Display meeting history | 4.6 | Frontend + API | TC-HIST-02 | N | Newest-first history
+MM-F-015 | Search past meeting minutes | 4.6 | Frontend + API | TC-HIST-03 | N | Keyword/date search
+MM-F-016 | User registration and login | 4.7 | AuthModule | TC-AUTH-01 | N | Registration and authentication
+MM-F-017 | Input meeting metadata | 4.7 | Frontend + Database | TC-AUTH-02 | N | Title/date/participants
+MM-F-018 | Preprocess and normalize transcript | 4.3 | TextProcessingModule | TC-TP-01 | N | Normalize transcript before extraction
+MM-F-019 | Extract key discussion points | 4.4 | ExtractorModule | TC-EX-05 | N | Discussion/topic extraction
+MM-F-020 | Handle empty extraction results | 4.4 | ExtractorModule | TC-EX-06 | N | No unsupported information generated
 
-> **Status Key:** N = Not started, P = Partial, A = Approved/Passed
+MM-NF-001 | Processing time ≤ 60s | 5 | Pipeline | TC-PERF-01 | N |
+MM-NF-002 | Responsive UI on desktop | 5 | Frontend | TC-UX-01 | N |
+MM-NF-003 | 5 concurrent users | Section 5 | Server | TC-PERF-02 | N |
+MM-NF-004 | Passwords hashed (bcrypt) | 5 | AuthModule | TC-SEC-01 | N |
+MM-NF-005 | Availability during scheduled evaluation/demo | Section 5 | Infrastructure | Ops monitoring | N |
+MM-NF-006 | Timestamped logs | 5 | Server | TC-OPS-01 | N |
+MM-SR-001 | HTTPS / TLS 1.2+ | 5.1.2 | Server | TC-SEC-02 | N |
+MM-SR-002 | bcrypt password hashing | 5.1.2 | AuthModule | TC-SEC-03 | N |
+MM-SR-003 | 30-min session timeout | 5.1.2 | AuthModule | TC-SEC-04 | N |
+MM-SR-004 | Input sanitization (SQLi, XSS) | 5.1.2 | Server | TC-SEC-05 | N |
+MM-SR-005 | MIME type restriction on uploads | 5.1.2 | UploadModule | TC-SEC-06 | N |
+MM-SR-006 | UUID filenames (path traversal prevention) | 5.1.2 | UploadModule | TC-SEC-07 | N |
 
+> Status Key: N = Not started, P = Partial, A = Approved/Passed
 ---
 
 *End of SRS Document — Version 1.0*
