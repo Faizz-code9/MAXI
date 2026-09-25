@@ -7,20 +7,29 @@
 | **Project** | Automated Meeting Minutes Generator (MiniMax) |
 | **Version** | 1.0 |
 | **Date** | September 2026 |
-| **Authors** | Team MiniMax |
-| **Status** | Draft |
+| **Authors** | Mohammed Faizan, Kamal Kanth N, Vinay M Rampur, Anagha Kaushik |
+| **Status** | Complete |
 
 ---
+
+### Team Members & SRN
+
+| Name | SRN | Role |
+|---|---|---|
+| **Mohammed Faizan** | PES1UG24AM472 | Team Lead / Backend |
+| **Kamal Kanth N** | PES1UG24AM434 | Backend Developer |
+| **Vinay M Rampur** | PES1UG24AM455 | Frontend Developer |
+| **Anagha Kaushik** | PES1UG24AM459 | Testing & Documentation |
 
 ### Revision History
 
 | Version | Date | Author | Change Summary |
 |---|---|---|---|
-| 0.1 | DD-MM-2026 | Member 1 | Initial draft — Introduction & Overall Description |
-| 0.2 | DD-MM-2026 | Member 2 | Functional requirements added |
-| 0.3 | DD-MM-2026 | Member 3 | Use case diagrams and external interfaces |
-| 0.4 | DD-MM-2026 | Member 4 | Non-functional, security requirements |
-| 1.0 | DD-MM-2026 | All | Final reviewed version |
+| 0.1 | 05-09-2026 | Mohammed Faizan | Initial draft — Introduction & Overall Description |
+| 0.2 | 20-09-2026 | Vinay M Rampur | Functional requirements added and refined (MM-F-018 to MM-F-020) |
+| 0.3 | 20-09-2026 | Anagha Kaushik | Use case diagrams, external interfaces, and UI updates |
+| 0.4 | 20-09-2026 | Kamal Kanth N | Non-functional and security requirements review |
+| 1.0 | 25-09-2026 | All | Final reviewed version |
 
 ### Approvals
 
@@ -317,7 +326,7 @@ MM-F-017 | Allow users to input meeting title, date, and participant names befor
 
 ### 6.1 Exit Criteria for Acceptance
 
-- All **High-priority** functional requirements (MM-F-001 through MM-F-016) are implemented and verified
+- All **High-priority** functional requirements (MM-F-001 through MM-F-020) are implemented and verified
 - All **High-priority** non-functional requirements pass their acceptance criteria
 - All **High-priority** security requirements pass their acceptance criteria
 - No **Critical** or **High** severity defects remain open
@@ -328,8 +337,9 @@ MM-F-017 | Allow users to input meeting title, date, and participant names befor
 | Suite | Covers | Key Test Cases |
 |---|---|---|
 | **Upload Tests** | MM-F-001, MM-F-002, MM-F-003 | Valid upload, invalid format rejection, oversized file rejection |
-| **Transcription Tests** | MM-F-004, MM-F-005 | Stub returns text, progress indicator shown |
-| **Extraction Tests** | MM-F-006, MM-F-007, MM-F-008, MM-F-009 | Action items, deadlines, assignees, decisions extracted correctly |
+| **Transcription Tests** | MM-F-004, MM-F-005 | Stub returns text, processing status shown |
+| **Text Preprocessing Tests** | MM-F-018 | Transcript normalization (whitespace, case, line breaks) |
+| **Extraction Tests** | MM-F-006, MM-F-007, MM-F-008, MM-F-009, MM-F-019, MM-F-020 | Action items, deadlines, assignees, decisions, discussion points, empty extraction handling |
 | **Generation Tests** | MM-F-010, MM-F-011, MM-F-012 | Markdown structure, PDF download, editable fields |
 | **History & Search Tests** | MM-F-013, MM-F-014, MM-F-015 | Data persisted, list displays, search returns results |
 | **Authentication Tests** | MM-F-016, MM-F-017 | Register, login, invalid credentials, meeting metadata |
