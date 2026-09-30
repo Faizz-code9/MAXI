@@ -17,8 +17,8 @@
 | Name | SRN | Role |
 |---|---|---|
 | **Mohammed Faizan** | PES1UG24AM472 | Team Lead / Backend |
-| **Kamal Kanth N** | PES1UG24AM434 | Backend Developer |
-| **Vinay M Rampur** | PES1UG24AM455 | Frontend Developer |
+| **Vinay M Rampur** | PES1UG24AM455 | Backend Developer |
+| **Kamal Kanth N** | PES1UG24AM434 | Frontend Developer |
 | **Anagha Kaushik** | PES1UG24AM459 | Testing & Documentation |
 
 ### Revision History
@@ -26,8 +26,8 @@
 | Version | Date | Author | Change Summary |
 |---|---|---|---|
 | 0.1 | DD-MM-2026 | Mohammed Faizan | Architecture and component design |
-| 0.2 | DD-MM-2026 | Kamal Kanth N | API design and sequence diagrams |
-| 0.3 | DD-MM-2026 | Vinay M Rampur | UX design and wireframes |
+| 0.2 | DD-MM-2026 | Vinay M Rampur | API design and sequence diagrams |
+| 0.3 | DD-MM-2026 | Kamal Kanth N | UX design and wireframes |
 | 0.4 | DD-MM-2026 | Anagha Kaushik | Security architecture, DB design, error handling |
 | 1.0 | DD-MM-2026 | All | Final reviewed version |
 
