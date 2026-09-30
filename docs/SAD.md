@@ -327,88 +327,15 @@ The system follows a sequential processing pipeline triggered by user action:
 
 ### 4.2 UML Sequence Diagrams
 
-#### Sequence Diagram 1 — Upload, Process, and Generate Minutes
+#### Sequence Diagram 1 – Upload, Process, and Generate Minutes
 
-```
-User          Frontend       Backend API    Transcriber    Preprocessor    Extractor    Generator    Database    FileSystem
- │                │               │              │              │              │            │            │            │
- │─── Select ────►│               │              │              │              │            │            │            │
- │    Audio File  │               │              │              │              │            │            │            │
- │─── Enter ─────►│               │              │              │              │            │            │            │
- │    Metadata    │               │              │              │              │            │            │            │
- │─── Click ─────►│               │              │              │              │            │            │            │
- │    Upload      │               │              │              │              │            │            │            │
- │                │── POST ──────►│              │              │              │            │            │            │
- │                │   /upload     │              │              │              │            │            │            │
- │                │               │── Validate ─►│              │              │            │            │            │
- │                │               │   File       │              │              │            │            │            │
- │                │               │──────────────────────────────────────────────────────────────────────►│            │
- │                │               │              │              │              │            │   Save     │            │
- │                │               │              │              │              │            │   Audio    │            │
- │                │               │── Transcribe─►│              │              │            │            │            │
- │                │               │              │── Return ───►│              │            │            │            │
- │                │               │              │   Transcript │              │            │            │            │
- │                │               │              │              │── Normalize─►│            │            │            │
- │                │               │              │              │   Text       │            │            │            │
- │                │               │              │              │              │── Extract─►│            │            │
- │                │               │              │              │              │  Items     │            │            │
- │                │               │              │              │              │            │── Generate │            │
- │                │               │              │              │              │            │   Markdown │            │
- │                │               │──────────────────────────────────────────────────────────►│            │            │
- │                │               │              │              │              │            │  Save      │            │
- │                │               │              │              │              │            │  Meeting   │            │
- │                │◄── 200 OK ────│              │              │              │            │            │            │
- │                │   {minutes}   │              │              │              │            │            │            │
- │◄── Display ────│               │              │              │              │            │            │            │
- │    Minutes     │               │              │              │              │            │            │            │
-```
+![Sequence Diagram 1](diagrams/sequence_upload_process.png)
 
-> **Note:** Replace this text diagram with a proper UML sequence diagram created in draw.io, PlantUML, or similar tool.
+#### Sequence Diagram 2 – View History and Export PDF
 
-#### Sequence Diagram 2 — View History and Export PDF
+![Sequence Diagram 2](diagrams/sequence_history_export.png)
 
-```
-User          Frontend       Backend API    Database    Generator    FileSystem
- │                │               │              │            │            │
- │─── Click ─────►│               │              │            │            │
- │    History     │               │              │            │            │
- │                │── GET ───────►│              │            │            │
- │                │   /history    │              │            │            │
- │                │               │── Query ────►│            │            │
- │                │               │   Meetings   │            │            │
- │                │               │◄── Results ──│            │            │
- │                │◄── 200 OK ────│              │            │            │
- │                │   [meetings]  │              │            │            │
- │◄── Display ────│               │              │            │            │
- │    Meeting List│               │              │            │            │
- │                │               │              │            │            │
- │─── Select ────►│               │              │            │            │
- │    Meeting     │               │              │            │            │
- │                │── GET ───────►│              │            │            │
- │                │  /minutes/:id │              │            │            │
- │                │               │── Query ────►│            │            │
- │                │               │◄── Minutes ──│            │            │
- │                │◄── 200 OK ────│              │            │            │
- │◄── Display ────│               │              │            │            │
- │    Minutes     │               │              │            │            │
- │                │               │              │            │            │
- │─── Click ─────►│               │              │            │            │
- │    Export PDF  │               │              │            │            │
- │                │── GET ───────►│              │            │            │
- │                │  /minutes/    │              │            │            │
- │                │   :id/pdf     │              │            │            │
- │                │               │──────────────────────────►│            │
- │                │               │              │  Generate  │            │
- │                │               │              │  PDF       │            │
- │                │               │              │            │── Save ───►│
- │                │               │              │            │   PDF      │
- │                │◄── 200 OK ────│              │            │            │
- │                │   {pdf_url}   │              │            │            │
- │◄── Download ───│               │              │            │            │
- │    PDF         │               │              │            │            │
-```
 
-> **Note:** Replace this text diagram with a proper UML sequence diagram.
 
 ### 4.3 API Design
 
