@@ -143,63 +143,7 @@ Read Section 3 first for the big picture, then Section 4 for implementation deta
 
 ### 3.3 Component (UML) Diagram
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    PRESENTATION LAYER                    │
-│  ┌─────────────┐  ┌──────────────┐  ┌───────────────┐  │
-│  │  Upload Page │  │Minutes Viewer│  │ History Page   │  │
-│  └──────┬──────┘  └──────┬───────┘  └───────┬───────┘  │
-│         │                │                   │          │
-└─────────┼────────────────┼───────────────────┼──────────┘
-          │      HTTP/JSON │                   │
-┌─────────┼────────────────┼───────────────────┼──────────┐
-│         ▼                ▼                   ▼          │
-│                    API LAYER                             │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │              Flask/FastAPI Server                  │   │
-│  │  ┌──────────┐  ┌──────────┐  ┌────────────────┐  │   │
-│  │  │ /upload  │  │ /minutes │  │ /auth          │  │   │
-│  │  │ /process │  │ /history │  │ /register      │  │   │
-│  │  │          │  │ /search  │  │ /login         │  │   │
-│  │  └────┬─────┘  └────┬─────┘  └────────────────┘  │   │
-│  └───────┼──────────────┼────────────────────────────┘   │
-└──────────┼──────────────┼────────────────────────────────┘
-           │              │
-┌──────────┼──────────────┼────────────────────────────────┐
-│          ▼              │      PROCESSING LAYER          │
-│  ┌───────────────┐      │                                │
-│  │ Transcription │      │                                │
-│  │ Module (Stub) │      │                                │
-│  └───────┬───────┘      │                                │
-│          ▼              │                                │
-│  ┌───────────────┐      │                                │
-│  │ Text          │      │                                │
-│  │ Preprocessor  │      │                                │
-│  └───────┬───────┘      │                                │
-│          ▼              │                                │
-│  ┌───────────────┐      │                                │
-│  │ Extractor     │      │                                │
-│  │ Module        │      │                                │
-│  └───────┬───────┘      │                                │
-│          ▼              │                                │
-│  ┌───────────────┐      │                                │
-│  │ Document      │◄─────┘                                │
-│  │ Generator     │                                       │
-│  └───────┬───────┘                                       │
-└──────────┼───────────────────────────────────────────────┘
-           │
-┌──────────┼───────────────────────────────────────────────┐
-│          ▼           DATA LAYER                          │
-│  ┌───────────────┐  ┌───────────────┐                    │
-│  │ SQLite DB     │  │ File System   │                    │
-│  │ (Users,       │  │ (Audio files, │                    │
-│  │  Meetings,    │  │  Generated    │                    │
-│  │  Minutes)     │  │  PDFs)        │                    │
-│  └───────────────┘  └───────────────┘                    │
-└──────────────────────────────────────────────────────────┘
-```
-
-> **Note:** This text diagram should be replaced with a proper UML component diagram created in draw.io or similar tool.
+![Component diagram](diagrams/componentdiagram.png)
 
 ### 3.4 Component Descriptions
 
@@ -290,8 +234,8 @@ Read Section 3 first for the big picture, then Section 4 for implementation deta
 
 | Threat Category | Threat Description | Affected Component | Mitigation | SRS Req |
 |---|---|---|---|---|
-| **Spoofing** | Attacker impersonates a legitimate user by stealing session token | Auth Module | Use secure HTTP-only cookies; implement session timeout (30 min); use bcrypt for password hashing | MM-SR-002, MM-SR-003 |
-| **Tampering** | Attacker modifies uploaded audio file or meeting data in transit | API Layer, File System | Enforce HTTPS/TLS 1.2+ for all communication; validate file integrity on server | MM-SR-001 |
+| **Spoofing** | Attacker impersonates a legitimate user by stealing session token | Auth Module |Bcrypt password hashing, secure session management, 30-minute inactivity timeout, secure cookie/token handling| MM-SR-002, MM-SR-003 |
+| **Tampering** | Attacker modifies uploaded audio file or meeting data in transit | API Layer, File System | HTTPS/TLS 1.2+, server-side file validation, approved MIME types, UUID-based filenames| MM-SR-001 |
 | **Repudiation** | User denies uploading a file or modifying minutes | API Layer | Maintain timestamped audit logs for all uploads, edits, and deletions | MM-NF-006 |
 | **Information Disclosure** | Unauthorized user accesses another user's meeting minutes or audio files | Data Layer, API Layer | Enforce user-based access control on all API endpoints; store files with UUID names (no guessable paths) | MM-SR-006 |
 | **Denial of Service** | Attacker uploads extremely large files to exhaust server resources | Upload API | Enforce 100 MB file size limit; restrict allowed MIME types; rate limiting on upload endpoint | MM-F-003, MM-SR-005 |
@@ -465,30 +409,70 @@ All error responses follow a standard format:
 | 404 | NOT_FOUND | Meeting or minutes not found |
 | 500 | INTERNAL_ERROR | Unexpected server error |
 
-### 4.4 Error Handling, Logging & Monitoring
+## 4.4 Error Handling, Logging and monitoring
 
-#### Error Handling Strategy
+The system uses structured error handling across the frontend, API, processing, and data layers. Errors are handled gracefully and meaningful messages are returned to the user without exposing sensitive information or internal implementation details.
 
-| Layer | Strategy |
+### Error Handling by Layer
+
+| Layer | Error Handling |
 |---|---|
-| **Frontend** | Display user-friendly error messages; show form validation errors inline; show toast notifications for server errors |
-| **API Layer** | Return standardized JSON error responses (see above); catch all exceptions with a global error handler; never expose stack traces to clients |
-| **Processing Layer** | Each pipeline module catches its own exceptions and returns a structured error result; pipeline coordinator handles partial failures gracefully |
-| **Data Layer** | ORM handles connection errors with retry logic; database constraint violations return meaningful errors |
+| Frontend | Validates user input and uploaded files before submission. Displays user-friendly error messages for invalid input, failed uploads, or processing errors. |
+| API | Validates requests, authenticates users, checks authorization, and returns appropriate HTTP status codes for errors. |
+| Processing | Handles transcription, text preprocessing, extraction, and document generation failures. Processing errors are logged and reported to the user through a generic error message. |
+| Data | Handles database and file-system errors such as failed reads, writes, or missing records. Internal error details are logged but are not exposed to users. |
 
-#### Logging Strategy
+### HTTP Error Codes
 
-| Log Level | Usage | Example |
+| HTTP Code | Error Type | Example |
 |---|---|---|
-| **INFO** | Successful operations | `[INFO] 2026-09-25T10:30:00Z - User user@email.com uploaded meeting "Sprint Review" (meeting_id: abc-123)` |
-| **WARNING** | Recoverable issues | `[WARN] 2026-09-25T10:30:05Z - No action items extracted for meeting abc-123` |
-| **ERROR** | Failures | `[ERROR] 2026-09-25T10:30:10Z - PDF generation failed for meeting abc-123: WeasyPrint timeout` |
+| 400 | VALIDATION_ERROR | Invalid input or unsupported audio file |
+| 401 | AUTHENTICATION_ERROR | Missing or invalid authentication credentials |
+| 403 | AUTHORIZATION_ERROR | User attempts to access another user's meeting |
+| 404 | NOT_FOUND | Requested meeting or resource does not exist |
+| 500 | INTERNAL_ERROR | Unexpected server, database, or processing error |
 
-**Logging Rules:**
-- All logs include ISO 8601 timestamps (MM-NF-006)
-- No sensitive data (passwords, tokens) in logs
-- Log file rotation: daily, retain 30 days
-- Structured format: `[LEVEL] TIMESTAMP - MESSAGE (context)`
+### Logging
+
+The system maintains timestamped logs for important system events such as authentication events, audio uploads, meeting processing, action-item modifications, and errors.
+
+Each log entry should contain the following structured information:
+
+- Timestamp
+- Log level
+- Event or operation
+- Relevant resource identifiers such as user ID or meeting ID
+- Status or error code
+- Descriptive message
+
+The following log levels are used:
+
+- **INFO** – Normal system events, such as a successful meeting upload or processing completion.
+- **WARNING** – Unexpected conditions that do not stop the system, such as no action items being extracted.
+- **ERROR** – Failures that require attention, such as a failed PDF generation or database operation.
+
+### Logging Format
+
+Logs should follow a structured format similar to:
+
+`[LEVEL] TIMESTAMP - EVENT - MESSAGE (CONTEXT)`
+
+Example:
+
+`[INFO] 2026-09-25T10:30:00Z - MEETING_UPLOAD - Meeting audio uploaded successfully (user_id=123, meeting_id=456)`
+
+### Logging Rules
+
+1. Timestamps must use the ISO 8601 format.
+2. Logs must include an appropriate severity level: INFO, WARNING, or ERROR.
+3. Relevant event and resource identifiers should be included where applicable.
+4. Passwords, password hashes, authentication tokens, session credentials, and other sensitive information must never be logged.
+5. Audio contents and complete meeting transcripts must not be stored in application logs.
+6. Authentication events, uploads, processing events, action-item modifications, and system errors should be logged.
+7. Logs should use structured fields where possible to support easier searching and analysis.
+8. Log files should use daily rotation to prevent individual log files from becoming excessively large.
+9. Logs should be retained for 30 days.
+10. User-facing error messages must not expose stack traces, database details, file-system paths, or other internal implementation details.
 
 #### Monitoring
 
@@ -587,37 +571,7 @@ All error responses follow a standard format:
 
 #### Entity-Relationship Diagram
 
-```
-┌───────────────┐       1:N       ┌───────────────────┐
-│     User      │────────────────►│     Meeting       │
-├───────────────┤                 ├───────────────────┤
-│ id (PK)       │                 │ id (PK)           │
-│ email         │                 │ user_id (FK)      │
-│ password_hash │                 │ title             │
-│ created_at    │                 │ meeting_date      │
-└───────────────┘                 │ participants      │
-                                  │ audio_filename    │
-                                  │ transcript        │
-                                  │ minutes_markdown  │
-                                  │ status            │
-                                  │ created_at        │
-                                  │ updated_at        │
-                                  └────────┬──────────┘
-                                           │
-                                           │ 1:N
-                                           ▼
-                                  ┌───────────────────┐
-                                  │   ActionItem      │
-                                  ├───────────────────┤
-                                  │ id (PK)           │
-                                  │ meeting_id (FK)   │
-                                  │ description       │
-                                  │ assignee          │
-                                  │ deadline          │
-                                  │ status            │
-                                  │ created_at        │
-                                  └───────────────────┘
-```
+![Entity Relationship Diagram](diagrams/erdiagram.png)
 
 #### Table Schemas
 
