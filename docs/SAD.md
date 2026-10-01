@@ -17,8 +17,8 @@
 | Name | SRN | Role |
 |---|---|---|
 | **Mohammed Faizan** | PES1UG24AM472 | Team Lead / Backend |
-| **Kamal Kanth N** | PES1UG24AM434 | Backend Developer |
-| **Vinay M Rampur** | PES1UG24AM455 | Frontend Developer |
+| **Vinay M Rampur** | PES1UG24AM455 | Backend Developer |
+| **Kamal Kanth N** | PES1UG24AM434 | Frontend Developer |
 | **Anagha Kaushik** | PES1UG24AM459 | Testing & Documentation |
 
 ### Revision History
@@ -26,8 +26,8 @@
 | Version | Date | Author | Change Summary |
 |---|---|---|---|
 | 0.1 | DD-MM-2026 | Mohammed Faizan | Architecture and component design |
-| 0.2 | DD-MM-2026 | Kamal Kanth N | API design and sequence diagrams |
-| 0.3 | DD-MM-2026 | Vinay M Rampur | UX design and wireframes |
+| 0.2 | DD-MM-2026 | Vinay M Rampur | API design and sequence diagrams |
+| 0.3 | DD-MM-2026 | Kamal Kanth N | UX design and wireframes |
 | 0.4 | DD-MM-2026 | Anagha Kaushik | Security architecture, DB design, error handling |
 | 1.0 | DD-MM-2026 | All | Final reviewed version |
 
@@ -271,88 +271,13 @@ The system follows a sequential processing pipeline triggered by user action:
 
 ### 4.2 UML Sequence Diagrams
 
-#### Sequence Diagram 1 — Upload, Process, and Generate Minutes
+#### Sequence Diagram 1 – Upload, Process, and Generate Minutes
 
-```
-User          Frontend       Backend API    Transcriber    Preprocessor    Extractor    Generator    Database    FileSystem
- │                │               │              │              │              │            │            │            │
- │─── Select ────►│               │              │              │              │            │            │            │
- │    Audio File  │               │              │              │              │            │            │            │
- │─── Enter ─────►│               │              │              │              │            │            │            │
- │    Metadata    │               │              │              │              │            │            │            │
- │─── Click ─────►│               │              │              │              │            │            │            │
- │    Upload      │               │              │              │              │            │            │            │
- │                │── POST ──────►│              │              │              │            │            │            │
- │                │   /upload     │              │              │              │            │            │            │
- │                │               │── Validate ─►│              │              │            │            │            │
- │                │               │   File       │              │              │            │            │            │
- │                │               │──────────────────────────────────────────────────────────────────────►│            │
- │                │               │              │              │              │            │   Save     │            │
- │                │               │              │              │              │            │   Audio    │            │
- │                │               │── Transcribe─►│              │              │            │            │            │
- │                │               │              │── Return ───►│              │            │            │            │
- │                │               │              │   Transcript │              │            │            │            │
- │                │               │              │              │── Normalize─►│            │            │            │
- │                │               │              │              │   Text       │            │            │            │
- │                │               │              │              │              │── Extract─►│            │            │
- │                │               │              │              │              │  Items     │            │            │
- │                │               │              │              │              │            │── Generate │            │
- │                │               │              │              │              │            │   Markdown │            │
- │                │               │──────────────────────────────────────────────────────────►│            │            │
- │                │               │              │              │              │            │  Save      │            │
- │                │               │              │              │              │            │  Meeting   │            │
- │                │◄── 200 OK ────│              │              │              │            │            │            │
- │                │   {minutes}   │              │              │              │            │            │            │
- │◄── Display ────│               │              │              │              │            │            │            │
- │    Minutes     │               │              │              │              │            │            │            │
-```
+![Sequence Diagram 1](diagrams/sequence_upload_process.png)
 
-> **Note:** Replace this text diagram with a proper UML sequence diagram created in draw.io, PlantUML, or similar tool.
+#### Sequence Diagram 2 – View History and Export PDF
 
-#### Sequence Diagram 2 — View History and Export PDF
-
-```
-User          Frontend       Backend API    Database    Generator    FileSystem
- │                │               │              │            │            │
- │─── Click ─────►│               │              │            │            │
- │    History     │               │              │            │            │
- │                │── GET ───────►│              │            │            │
- │                │   /history    │              │            │            │
- │                │               │── Query ────►│            │            │
- │                │               │   Meetings   │            │            │
- │                │               │◄── Results ──│            │            │
- │                │◄── 200 OK ────│              │            │            │
- │                │   [meetings]  │              │            │            │
- │◄── Display ────│               │              │            │            │
- │    Meeting List│               │              │            │            │
- │                │               │              │            │            │
- │─── Select ────►│               │              │            │            │
- │    Meeting     │               │              │            │            │
- │                │── GET ───────►│              │            │            │
- │                │  /minutes/:id │              │            │            │
- │                │               │── Query ────►│            │            │
- │                │               │◄── Minutes ──│            │            │
- │                │◄── 200 OK ────│              │            │            │
- │◄── Display ────│               │              │            │            │
- │    Minutes     │               │              │            │            │
- │                │               │              │            │            │
- │─── Click ─────►│               │              │            │            │
- │    Export PDF  │               │              │            │            │
- │                │── GET ───────►│              │            │            │
- │                │  /minutes/    │              │            │            │
- │                │   :id/pdf     │              │            │            │
- │                │               │──────────────────────────►│            │
- │                │               │              │  Generate  │            │
- │                │               │              │  PDF       │            │
- │                │               │              │            │── Save ───►│
- │                │               │              │            │   PDF      │
- │                │◄── 200 OK ────│              │            │            │
- │                │   {pdf_url}   │              │            │            │
- │◄── Download ───│               │              │            │            │
- │    PDF         │               │              │            │            │
-```
-
-> **Note:** Replace this text diagram with a proper UML sequence diagram.
+![Sequence Diagram 2](diagrams/sequence_history_export.png)
 
 ### 4.3 API Design
 
@@ -486,86 +411,17 @@ Example:
 
 #### Page Wireframes
 
-**Home Page (Upload)**
+**Home Page (Audio Upload)**
 
-```
-┌──────────────────────────────────────────────────┐
-│  [Logo] Meeting Minutes Generator    [History] [Logout] │
-├──────────────────────────────────────────────────┤
-│                                                  │
-│         ┌──────────────────────────┐             │
-│         │                          │             │
-│         │   📁 Drag & Drop Audio   │             │
-│         │      or Click to Browse  │             │
-│         │                          │             │
-│         │   Supported: MP3, WAV,   │             │
-│         │   M4A (max 100 MB)       │             │
-│         └──────────────────────────┘             │
-│                                                  │
-│  Meeting Title:  [________________________]      │
-│  Date:           [____/____/________]            │
-│  Participants:   [________________________]      │
-│                                                  │
-│              [ Upload & Process ]                │
-│                                                  │
-└──────────────────────────────────────────────────┘
-```
+![Home Page Wireframe](diagrams/wireframe_home.png)
 
-**Minutes Viewer**
+**Minutes Viewer (Minutes Display & Action Items Editor)**
 
-```
-┌──────────────────────────────────────────────────┐
-│  [Logo] Meeting Minutes Generator    [History] [Logout] │
-├──────────────────────────────────────────────────┤
-│                                                  │
-│  📄 Sprint Review Meeting                        │
-│  Date: 25-Sep-2026  |  Participants: A, B, C     │
-│                                                  │
-│  ── Summary ─────────────────────────────────    │
-│  Discussion about project status and next steps. │
-│                                                  │
-│  ── Discussion Points ───────────────────────    │
-│  • Backend API progress update                   │
-│  • Frontend UI review                            │
-│                                                  │
-│  ── Decisions ───────────────────────────────    │
-│  ✓ Agreed to use Flask for backend               │
-│                                                  │
-│  ── Action Items ────────────────────────────    │
-│  ┌────────────────────────────────────────────┐  │
-│  │ Task          │ Assignee │ Deadline │ [Edit]│  │
-│  │ Fix login bug │ Faizan   │ 30-Sep   │ [Edit]│  │
-│  │ Add search    │ Vinay    │ 02-Oct   │ [Edit]│  │
-│  └────────────────────────────────────────────┘  │
-│                                                  │
-│        [ Export as PDF ]   [ Back to History ]    │
-│                                                  │
-└──────────────────────────────────────────────────┘
-```
+![Minutes Viewer Wireframe](diagrams/wireframe_minutes_viewer.png)
 
-**History Page**
+**History Page (Searchable Archive)**
 
-```
-┌──────────────────────────────────────────────────┐
-│  [Logo] Meeting Minutes Generator    [History] [Logout] │
-├──────────────────────────────────────────────────┤
-│                                                  │
-│  🔍 Search: [_______________] [From: ___] [To: ___] [Search] │
-│                                                  │
-│  ── Past Meetings ───────────────────────────    │
-│  ┌────────────────────────────────────────────┐  │
-│  │ Title              │ Date       │ Actions  │  │
-│  │ Sprint Review      │ 25-Sep-2026│ [View]   │  │
-│  │ Planning Meeting   │ 20-Sep-2026│ [View]   │  │
-│  │ Design Discussion  │ 15-Sep-2026│ [View]   │  │
-│  └────────────────────────────────────────────┘  │
-│                                                  │
-│           [ ← Previous ]  [ Next → ]             │
-│                                                  │
-└──────────────────────────────────────────────────┘
-```
-
-> **Note:** Replace these ASCII wireframes with proper UI mockups created in Figma, draw.io, or similar tool.
+![History Page Wireframe](diagrams/wireframe_history.png)
 
 ### 4.6 Database Design
 
@@ -616,9 +472,9 @@ Example:
 
 | # | Issue | Status | Owner |
 |---|---|---|---|
-| 1 | Finalize frontend technology choice (React vs plain HTML/CSS/JS) | Open | Vinay M Rampur |
+| 1 | Finalize frontend technology choice (React vs plain HTML/CSS/JS) | Open | Kamal Kanth N |
 | 2 | Define realistic stub transcription sample texts for demo | Open | Mohammed Faizan |
-| 3 | Determine if spaCy is needed or regex alone is sufficient for extraction | Open | Kamal Kanth N |
+| 3 | Determine if spaCy is needed or regex alone is sufficient for extraction | Open | Vinay M Rampur |
 | 4 | Create proper UML diagrams (component, sequence) to replace text diagrams | Open | Anagha Kaushik |
 
 ---

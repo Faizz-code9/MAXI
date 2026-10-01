@@ -54,7 +54,7 @@ git push origin main
 
 ---
 
-### 📌 Kamal Kanth N
+### 📌 Vinay M Rampur (Backend Developer)
 
 **Sections:** 4.2 (Sequence Diagrams), 4.3 (API Design)
 
@@ -89,13 +89,13 @@ git push origin main
 **Commit:**
 ```bash
 git add docs/SAD.md docs/diagrams/
-git commit -m "docs(SAD): Kamal - added sequence diagrams, reviewed API design"
+git commit -m "docs(SAD): Vinay - added sequence diagrams, reviewed API design"
 git push origin main
 ```
 
 ---
 
-### 📌 Vinay M Rampur
+### 📌 Kamal Kanth N (Frontend Developer)
 
 **Sections:** 4.5 (UX Design), 3.4 (Component Descriptions)
 
@@ -128,7 +128,7 @@ git push origin main
 **Commit:**
 ```bash
 git add docs/SAD.md docs/diagrams/
-git commit -m "docs(SAD): Vinay - added UI wireframes, reviewed component descriptions"
+git commit -m "docs(SAD): Kamal - added UI wireframes, reviewed component descriptions"
 git push origin main
 ```
 
@@ -202,11 +202,11 @@ git push origin main
 |---|---|---|---|
 | UML Component Diagram | Anagha | draw.io | `docs/diagrams/component_diagram.png` |
 | ER Diagram | Anagha | draw.io | `docs/diagrams/er_diagram.png` |
-| Sequence Diagram 1 (Upload flow) | Kamal | draw.io | `docs/diagrams/sequence_upload_process.png` |
-| Sequence Diagram 2 (History flow) | Kamal | draw.io | `docs/diagrams/sequence_history_export.png` |
-| Wireframe: Home Page | Vinay | Figma/draw.io | `docs/diagrams/wireframe_home.png` |
-| Wireframe: Minutes Viewer | Vinay | Figma/draw.io | `docs/diagrams/wireframe_minutes_viewer.png` |
-| Wireframe: History Page | Vinay | Figma/draw.io | `docs/diagrams/wireframe_history.png` |
+| Sequence Diagram 1 (Upload flow) | Vinay | draw.io | `docs/diagrams/sequence_upload_process.png` |
+| Sequence Diagram 2 (History flow) | Vinay | draw.io | `docs/diagrams/sequence_history_export.png` |
+| Wireframe: Home Page | Kamal | Figma/draw.io | `docs/diagrams/wireframe_home.png` |
+| Wireframe: Minutes Viewer | Kamal | Figma/draw.io | `docs/diagrams/wireframe_minutes_viewer.png` |
+| Wireframe: History Page | Kamal | Figma/draw.io | `docs/diagrams/wireframe_history.png` |
 
 ---
 
