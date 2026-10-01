@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MiniMax — Automated Meeting Minutes Generator</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <!-- Navigation Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="logo">
+        <span class="logo-icon">🎙️</span>
+        <div class="logo-text">
+          <h1>MiniMax</h1>
+          <p>Automated Meeting Minutes Generator</p>
+        </div>
+      </div>
+      <nav class="nav-tabs">
+        <button class="nav-btn active" data-tab="upload-tab">Upload & Generate</button>
+        <button class="nav-btn" data-tab="viewer-tab" id="nav-viewer">Minutes Viewer</button>
+        <button class="nav-btn" data-tab="history-tab" id="nav-history">Meeting History</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="main-container">
+    
+    <!-- TAB 1: UPLOAD & GENERATE (Wireframe: wireframe_home.png) -->
+    <section id="upload-tab" class="tab-content active">
+      <div class="card upload-card">
+        <div class="card-header">
+          <h2>Upload Meeting Audio</h2>
+          <p>Upload meeting recording (.mp3, .wav, .m4a) up to 100MB to transcribe and extract minutes.</p>
+        </div>
+
+        <form id="upload-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="meeting-title">Meeting Title</label>
+              <input type="text" id="meeting-title" placeholder="e.g. Sprint 1 Architecture Sync" required>
+            </div>
+            <div class="form-group">
+              <label for="meeting-date">Meeting Date</label>
+              <input type="date" id="meeting-date" required>
+            </div>
+          </div>
+
+          <!-- Drag and Drop Zone -->
+          <div class="dropzone" id="dropzone">
+            <div class="dropzone-icon">📁</div>
+            <p class="dropzone-text"><strong>Drag and drop</strong> audio file here, or <span class="browse-link">browse</span></p>
+            <p class="dropzone-sub">Supported formats: MP3, WAV, M4A (Max 100MB)</p>
+            <input type="file" id="audio-input" accept=".mp3,.wav,.m4a" class="file-input">
+            <div id="file-info" class="file-info hidden">
+              <span id="file-name">Selected: filename.mp3</span>
+              <button type="button" id="remove-file" class="btn-remove">✕</button>
+            </div>
+          </div>
+
+          <!-- Progress Bar -->
+          <div id="upload-progress-container" class="progress-container hidden">
+            <div class="progress-label">
+              <span id="progress-status">Transcribing and analyzing meeting audio...</span>
+              <span id="progress-percent">0%</span>
+            </div>
+            <div class="progress-bar">
+              <div id="progress-fill" class="progress-fill"></div>
+            </div>
+          </div>
+
+          <button type="submit" id="submit-btn" class="btn btn-primary btn-block">
+            Generate Meeting Minutes
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- TAB 2: MINUTES VIEWER (Wireframe: wireframe_minutes_viewer.png) -->
+    <section id="viewer-tab" class="tab-content">
+      <div class="card viewer-card">
+        <div class="viewer-top-bar">
+          <div>
+            <h2 id="view-title">Sprint 1 Architecture Sync</h2>
+            <div class="metadata-row">
+              <span class="meta-badge" id="view-date">📅 2026-10-01</span>
+              <span class="meta-badge" id="view-duration">⏱️ 00:02:25</span>
+              <span class="meta-badge badge-success" id="view-status">Processed</span>
+            </div>
+          </div>
+          <div class="export-actions">
+            <button id="btn-export-md" class="btn btn-secondary">📥 Export Markdown</button>
+            <button id="btn-copy-clip" class="btn btn-secondary">📋 Copy Minutes</button>
+          </div>
+        </div>
+
+        <!-- Attendees -->
+        <div class="content-block">
+          <h3>👥 Attendees</h3>
+          <div id="view-attendees" class="attendees-list">
+            <!-- Badges injected dynamically -->
+          </div>
+        </div>
+
+        <!-- Executive Summary -->
+        <div class="content-block">
+          <h3>📝 Executive Summary</h3>
+          <p id="view-summary" class="summary-text">Summary details will appear here.</p>
+        </div>
+
+        <!-- Key Decisions -->
+        <div class="content-block">
+          <h3>⚖️ Key Decisions</h3>
+          <ul id="view-decisions" class="decision-list">
+            <!-- Decisions injected dynamically -->
+          </ul>
+        </div>
+
+        <!-- Action Items Table -->
+        <div class="content-block">
+          <h3>✅ Action Items</h3>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Task Description</th>
+                  <th>Assignee</th>
+                  <th>Deadline</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="view-action-items">
+                <!-- Action items rows injected dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Raw Transcript Accordion -->
+        <details class="transcript-details">
+          <summary>🎙️ View Full Transcript</summary>
+          <pre id="view-transcript" class="transcript-box"></pre>
+        </details>
+      </div>
+    </section>
+
+    <!-- TAB 3: MEETING HISTORY (Wireframe: wireframe_history.png) -->
+    <section id="history-tab" class="tab-content">
+      <div class="card history-card">
+        <div class="history-top-bar">
+          <h2>Meeting History</h2>
+          <div class="search-box">
+            <input type="text" id="history-search" placeholder="Search by title or date...">
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Meeting Title</th>
+                <th>Date</th>
+                <th>Duration</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="history-list">
+              <!-- Meeting history rows injected dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

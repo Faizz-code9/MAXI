@@ -29,6 +29,10 @@ output/
 *.mp3
 *.wav
 *.m4a
+*.db
+*.sqlite
+*.sqlite3
+.pytest_cache/
 
 implementation_plan.md 
 SAD_Template.docx
