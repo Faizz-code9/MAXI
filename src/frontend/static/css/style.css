@@ -469,3 +469,13 @@ body {
   width: 250px;
   font-size: 0.9rem;
 }
+.btn-sm {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+  margin-right: 0.4rem;
+}
+
+button.status-tag {
+  border: none;
+  cursor: pointer;
+}

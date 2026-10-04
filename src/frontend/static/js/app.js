@@ -19,6 +19,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const fileName = document.getElementById("file-name");
   const removeFileBtn = document.getElementById("remove-file");
   const meetingTitleInput = document.getElementById("meeting-title");
+  const meetingDeptInput = document.getElementById("meeting-dept");
   const meetingDateInput = document.getElementById("meeting-date");
   const progressContainer = document.getElementById("upload-progress-container");
   const progressFill = document.getElementById("progress-fill");
@@ -115,6 +116,7 @@ document.addEventListener("DOMContentLoaded", () => {
     formData.append("audio", file);
     formData.append("title", meetingTitleInput.value);
     formData.append("date", meetingDateInput.value);
+    formData.append("department", meetingDeptInput.value);
 
     // Show Progress
     progressContainer.classList.remove("hidden");
@@ -140,8 +142,7 @@ document.addEventListener("DOMContentLoaded", () => {
         progressContainer.classList.add("hidden");
         submitBtn.disabled = false;
         submitBtn.textContent = "Generate Meeting Minutes";
-        displayMinutes(data);
-        switchTab("viewer-tab");
+        window.viewHistoricalMeeting(data.meeting_id);
       }, 500);
 
     } catch (err) {
@@ -227,7 +228,27 @@ document.addEventListener("DOMContentLoaded", () => {
     // Transcript
     viewTranscript.textContent = data.raw_transcript || data.processed_transcript || "";
   }
-
+// ================= TOGGLE ACTION ITEM STATUS =================
+viewActionItems.addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-id]");
+  if (!btn || !btn.dataset.id) return;
+  const newStatus = btn.dataset.status === "Completed" ? "Pending" : "Completed";
+  try {
+    const res = await fetch(`/api/action-items/${btn.dataset.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: newStatus })
+    });
+    const data = await res.json();
+    if (data.success) {
+      btn.dataset.status = newStatus;
+      btn.textContent = newStatus;
+      btn.className = "status-tag " + (newStatus === "Completed" ? "status-completed" : "status-pending");
+    }
+  } catch (err) {
+    alert("Could not update status: " + err.message);
+  }
+});
   // ================= EXPORT ACTIONS =================
   btnExportMd.addEventListener("click", () => {
     if (!currentMeetingId) return;
@@ -264,6 +285,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <td><span class="status-tag status-completed">${m.status}</span></td>
           <td>
             <button class="btn btn-secondary btn-sm" onclick="viewHistoricalMeeting(${m.id})">View</button>
+            <button class="btn btn-secondary btn-sm" onclick="window.location.href='/api/meetings/${m.id}/export'">Download</button>
           </td>
         `;
         historyList.appendChild(tr);
