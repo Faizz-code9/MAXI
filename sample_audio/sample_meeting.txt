@@ -1,0 +1,16 @@
+[00:00:01] Alice: Good morning everyone. Welcome to the weekly sync on the MiniMax project. Let's review our agenda.
+[00:00:15] Bob: Good morning Alice. I have the architecture updates ready.
+[00:00:28] Charlie: Hi all. Frontend wireframes are completed on my end.
+[00:00:45] Alice: Great. First topic: Database schema design. We discussed SQLite vs PostgreSQL last week.
+[00:01:05] Bob: For our local deployment, we decided to use SQLite with SQLAlchemy ORM because of zero-configuration and portability.
+[00:01:22] Alice: Agreed. Decision: SQLite will be our primary database for Sprint 1.
+[00:01:40] Alice: Next, action items. Bob, can you finalize the database models and migrations by Friday?
+[00:01:55] Bob: Yes, action item: Bob will finalize the database models by Friday.
+[00:02:10] Alice: Charlie, what about the frontend drag-and-drop audio uploader?
+[00:02:25] Charlie: I will handle the file upload UI and progress bar by Monday.
+[00:02:40] Alice: Perfect. Action item: Charlie to implement drag-and-drop audio upload UI by Monday.
+[00:02:55] Alice: For myself, I will write the audio transcription validator and error handlers by Wednesday.
+[00:03:10] Bob: Should we also set up automated unit testing?
+[00:03:20] Alice: Yes, we agreed to require at least 80% test coverage with pytest before merging PRs.
+[00:03:35] Bob: TODO: Bob will write unit tests for the extractor module by Thursday.
+[00:03:50] Alice: Excellent. Any other blockers? No? Then meeting adjourned. Thanks all!

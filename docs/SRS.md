@@ -17,8 +17,8 @@
 | Name | SRN | Role |
 |---|---|---|
 | **Mohammed Faizan** | PES1UG24AM472 | Team Lead / Backend |
-| **Kamal Kanth N** | PES1UG24AM434 | Backend Developer |
-| **Vinay M Rampur** | PES1UG24AM455 | Frontend Developer |
+| **Vinay M Rampur** | PES1UG24AM455 | Backend Developer |
+| **Kamal Kanth N** | PES1UG24AM434 | Frontend Developer |
 | **Anagha Kaushik** | PES1UG24AM459 | Testing & Documentation |
 
 ### Revision History

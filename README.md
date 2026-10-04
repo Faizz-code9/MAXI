@@ -83,8 +83,8 @@ python src/backend/app.py
 | Member | SRN | Role | Responsibilities |
 |---|---|---|---|
 | Mohammed Faizan | PES1UG24AM472 | Team Lead / Backend | Project coordination, Transcription module |
-| Kamal Kanth N | PES1UG24AM434 | Backend Developer | Text processing & action item extraction |
-| Vinay M Rampur | PES1UG24AM455 | Frontend Developer | UI/UX, upload interface, minutes display |
+| Vinay M Rampur | PES1UG24AM455 | Backend Developer | Text processing & action item extraction |
+| Kamal Kanth N | PES1UG24AM434 | Frontend Developer | UI/UX, upload interface, minutes display |
 | Anagha Kaushik | PES1UG24AM459 | Testing & Docs | SRS, SDD, test cases, document generation |
 
 ## 📅 Development Phases
