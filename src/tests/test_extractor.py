@@ -19,7 +19,7 @@ from extractor import (
     extract_action_items,
     generate_executive_summary
 )
-from generator import generate_markdown_minutes
+from generator import generate_markdown_minutes, save_markdown_minutes
 
 
 def test_remove_filler_words():
@@ -82,3 +82,18 @@ def test_generate_markdown_minutes():
     assert "Alice, Bob" in doc
     assert "Use SQLite" in doc
     assert "Charlie" in doc
+
+def test_save_markdown_minutes(tmp_path):
+    content = "# Meeting Minutes\n\nTest meeting."
+    file_path = save_markdown_minutes(
+        content,
+        "test_meeting",
+        str(tmp_path)
+    )
+
+    assert file_path.endswith("test_meeting.md")
+
+    with open(file_path, "r", encoding="utf-8") as file:
+        saved_content = file.read()
+
+    assert saved_content == content

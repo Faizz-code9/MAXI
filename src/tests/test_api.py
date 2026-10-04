@@ -14,7 +14,7 @@ import pytest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend")))
 
 from app import app
-from models import init_db
+from models import init_db, get_db_connection, create_meeting, add_action_items, update_action_item_status
 
 
 @pytest.fixture
@@ -70,3 +70,48 @@ def test_upload_valid_audio_stub(client):
     assert "meeting_id" in json_data
     assert json_data["title"] == "Sprint 1 Integration Meeting"
     assert len(json_data["action_items"]) > 0
+
+def test_update_action_item_status():
+    init_db()
+
+    meeting_id = create_meeting(
+        "Status Test Meeting",
+        "2026-10-05"
+    )
+
+    add_action_items(
+        meeting_id,
+        [{
+            "task": "Test task",
+            "assignee": "Alice",
+            "deadline": "Friday",
+            "status": "Pending"
+        }]
+    )
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT id FROM action_items WHERE meeting_id = ?",
+        (meeting_id,)
+    )
+    action_item_id = cursor.fetchone()["id"]
+    conn.close()
+
+    updated = update_action_item_status(
+        action_item_id,
+        "Completed"
+    )
+
+    assert updated is True
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT status FROM action_items WHERE id = ?",
+        (action_item_id,)
+    )
+    status = cursor.fetchone()["status"]
+    conn.close()
+
+    assert status == "Completed"
