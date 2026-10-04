@@ -29,9 +29,14 @@ output/
 *.mp3
 *.wav
 *.m4a
+*.db
+*.sqlite
+*.sqlite3
+.pytest_cache/
 
 implementation_plan.md 
 SAD_Template.docx
 SRS_Template for SE.docx
 Test_Plan_Template for SE.docx
-TEAM_GUIDE.md
+docs/TEAM_GUIDE.md
+docs/TEAM_GUIDE_PHASE2.md 
