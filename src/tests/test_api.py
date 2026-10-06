@@ -115,3 +115,24 @@ def test_update_action_item_status():
     conn.close()
 
     assert status == "Completed"
+
+
+def test_export_pdf_endpoint(client):
+    """Verifies that PDF export endpoints return valid printable document."""
+    meeting_id = create_meeting("PDF Export Test", "2026-10-06")
+    
+    # Test SAD 4.3 route
+    resp1 = client.get(f"/api/minutes/{meeting_id}/pdf")
+    assert resp1.status_code == 200
+    assert b"Meeting Minutes" in resp1.data
+
+    # Test alias route
+    resp2 = client.get(f"/api/meetings/{meeting_id}/export/pdf")
+    assert resp2.status_code == 200
+    assert b"Meeting Minutes" in resp2.data
+
+    # Test format query param
+    resp3 = client.get(f"/api/meetings/{meeting_id}/export?format=pdf")
+    assert resp3.status_code == 200
+    assert b"Meeting Minutes" in resp3.data
+

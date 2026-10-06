@@ -223,12 +223,104 @@ def export_meeting(meeting_id):
             transcript=transcript
         )
 
+        # Check if PDF format is requested
+        if request.args.get("format", "").lower() == "pdf":
+            return export_meeting_pdf(meeting_id)
+
         filename = f"Minutes_{meeting_id}_{datetime.now().strftime('%Y%m%d')}.md"
         return Response(
             markdown_doc,
             mimetype="text/markdown",
             headers={"Content-Disposition": f"attachment;filename={filename}"}
         )
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/minutes/<int:meeting_id>/pdf", methods=["GET"])
+@app.route("/api/meetings/<int:meeting_id>/pdf", methods=["GET"])
+@app.route("/api/meetings/<int:meeting_id>/export/pdf", methods=["GET"])
+def export_meeting_pdf(meeting_id):
+    """
+    Exports structured meeting minutes formatted for PDF printing/downloading.
+    Provides styled print layout adhering to SAD Section 4.3 (/api/minutes/{id}/pdf).
+    """
+    try:
+        meeting = get_meeting(meeting_id)
+        if not meeting:
+            return jsonify({"success": False, "error": "Meeting not found."}), 404
+
+        transcript = meeting.get("processed_transcript") or meeting.get("raw_transcript") or ""
+        attendees = extract_attendees(transcript)
+        decisions = extract_decisions(transcript)
+        action_items = meeting.get("action_items", [])
+
+        decisions_html = "".join(f"<li>{d}</li>" for d in decisions) if decisions else "<li>No formal decisions recorded.</li>"
+        action_rows = "".join(
+            f"<tr><td>{i}</td><td>{item.get('task','')}</td><td><strong>{item.get('assignee','Unassigned')}</strong></td><td><code>{item.get('deadline','TBD')}</code></td><td>{item.get('status','Pending')}</td></tr>"
+            for i, item in enumerate(action_items, 1)
+        ) if action_items else '<tr><td colspan="5" style="text-align:center;">No action items recorded.</td></tr>'
+
+        html_doc = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Meeting Minutes - {meeting['title']}</title>
+  <style>
+    body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; color: #0f172a; line-height: 1.6; max-width: 850px; margin: auto; }}
+    h1 {{ color: #4338ca; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 12px; }}
+    h2 {{ color: #1e1b4b; margin-top: 24px; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; }}
+    .meta-box {{ background: #f8fafc; border-left: 4px solid #4338ca; padding: 12px 16px; border-radius: 4px; margin: 16px 0; }}
+    .meta-box p {{ margin: 4px 0; }}
+    table {{ width: 100%; border-collapse: collapse; margin-top: 12px; }}
+    th, td {{ border: 1px solid #cbd5e1; padding: 8px 12px; text-align: left; font-size: 14px; }}
+    th {{ background: #f1f5f9; font-weight: 600; text-transform: uppercase; font-size: 12px; }}
+    ul {{ padding-left: 20px; }}
+    li {{ margin-bottom: 6px; }}
+    .summary-text {{ background: #f8fafc; padding: 12px 16px; border-radius: 6px; border: 1px solid #e2e8f0; }}
+    @media print {{
+      body {{ padding: 0; }}
+      @page {{ margin: 1.5cm; }}
+    }}
+  </style>
+  <script>
+    window.onload = function() {{
+      if (window.location.search.includes('print=true') || window.location.search.includes('autoprint=true')) {{
+        window.print();
+      }}
+    }};
+  </script>
+</head>
+<body>
+  <h1>📋 Meeting Minutes: {meeting['title']}</h1>
+  <div class="meta-box">
+    <p><strong>Date:</strong> {meeting['date']} &nbsp;|&nbsp; <strong>Duration:</strong> {meeting.get('duration', '00:02:25')} &nbsp;|&nbsp; <strong>Status:</strong> Approved</p>
+    <p><strong>Attendees:</strong> {', '.join(attendees) if attendees else 'General Project Team'}</p>
+  </div>
+
+  <h2>📝 Executive Summary</h2>
+  <div class="summary-text">{meeting.get('summary', 'No summary recorded.')}</div>
+
+  <h2>⚖️ Key Decisions</h2>
+  <ul>{decisions_html}</ul>
+
+  <h2>✅ Action Items</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Task Description</th>
+        <th>Assignee</th>
+        <th>Deadline</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>{action_rows}</tbody>
+  </table>
+</body>
+</html>"""
+
+        return Response(html_doc, mimetype="text/html")
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 

@@ -36,6 +36,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const viewActionItems = document.getElementById("view-action-items");
   const viewTranscript = document.getElementById("view-transcript");
   const btnExportMd = document.getElementById("btn-export-md");
+  const btnExportPdf = document.getElementById("btn-export-pdf");
   const btnCopyClip = document.getElementById("btn-copy-clip");
 
   // History elements
@@ -254,6 +255,13 @@ viewActionItems.addEventListener("click", async (e) => {
     if (!currentMeetingId) return;
     window.location.href = `/api/meetings/${currentMeetingId}/export`;
   });
+
+  if (btnExportPdf) {
+    btnExportPdf.addEventListener("click", () => {
+      if (!currentMeetingId) return;
+      window.open(`/api/minutes/${currentMeetingId}/pdf?autoprint=true`, "_blank");
+    });
+  }
 
   btnCopyClip.addEventListener("click", () => {
     if (!currentMarkdownContent) return;
