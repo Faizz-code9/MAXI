@@ -257,8 +257,25 @@ def main():
         "User-Agent": "MiniMax-Issues-Bot"
     }
 
-    print(f"Creating issues on GitHub repo: {repo}...")
+    # Fetch existing issues to avoid duplicates
+    existing_titles = set()
+    try:
+        req_list = urllib.request.Request(f"{url}?state=all&per_page=100", headers=headers)
+        with urllib.request.urlopen(req_list) as resp:
+            existing = json.loads(resp.read().decode("utf-8"))
+            for item in existing:
+                existing_titles.add(item.get("title", "").strip().lower())
+        print(f"Found {len(existing_titles)} existing issues on repository.")
+    except Exception as e:
+        print(f"[WARN] Could not fetch existing issues: {e}")
+
+    print(f"Syncing remaining issues to GitHub repo: {repo}...")
     for story in USER_STORIES:
+        title_lower = story["title"].strip().lower()
+        if title_lower in existing_titles or any(story["id"].lower() in t for t in existing_titles):
+            print(f"[SKIP] {story['title']} already exists on GitHub.")
+            continue
+
         payload = {
             "title": story["title"],
             "body": format_issue_body(story),
@@ -268,9 +285,9 @@ def main():
         try:
             with urllib.request.urlopen(req) as resp:
                 res_data = json.loads(resp.read().decode("utf-8"))
-                print(f"Created Issue #{res_data.get('number')}: {story['title']}")
+                print(f"[CREATED] Issue #{res_data.get('number')}: {story['title']}")
         except urllib.error.HTTPError as e:
-            print(f"Failed to create {story['title']}: {e}")
+            print(f"[ERROR] Failed to create {story['title']}: {e}")
 
 
 if __name__ == "__main__":
