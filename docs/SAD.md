@@ -279,6 +279,7 @@ The system follows a sequential processing pipeline triggered by user action:
 
 ![Sequence Diagram 2](diagrams/sequence_history_export.png)
 
+
 ### 4.3 API Design
 
 #### Authentication Endpoints
