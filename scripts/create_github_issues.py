@@ -1,0 +1,277 @@
+"""
+MiniMax GitHub Issues Generator & API Sync
+==========================================
+Software Engineering Mini-Project Deliverables Part-2
+
+This script exports all 20 Product Backlog User Stories.
+If a GITHUB_TOKEN environment variable is present, it can automatically
+create issues on the repository 'Faizz-code9/MAXI' using GitHub's REST API.
+Otherwise, it prints out the formatted issues for easy inspection and manual entry.
+"""
+
+import os
+import sys
+import json
+import urllib.request
+import urllib.error
+
+USER_STORIES = [
+    {
+        "id": "US-01",
+        "title": "[US-01] Audio Upload Drag-and-Drop Form",
+        "story": "As a user, I want to drag and drop audio recordings (.mp3, .wav, .m4a) on the dashboard, so that I can easily submit meeting recordings.",
+        "srs_ref": "MM-F-001, MM-F-017, MM-NF-002",
+        "points": 3,
+        "assignee": "kamalkanthan (Kamal Kanth N)",
+        "sprint": "Sprint 1",
+        "labels": ["user-story", "sprint-1", "frontend"]
+    },
+    {
+        "id": "US-02",
+        "title": "[US-02] Audio Format & Size Validation",
+        "story": "As a backend system, I want to validate file extensions, MIME types, and enforce the 100MB limit with friendly error alerts, so that invalid files are safely rejected.",
+        "srs_ref": "MM-F-002, MM-F-003, MM-SR-005",
+        "points": 2,
+        "assignee": "Faizz-code9 (Mohammed Faizan)",
+        "sprint": "Sprint 1",
+        "labels": ["user-story", "sprint-1", "backend"]
+    },
+    {
+        "id": "US-03",
+        "title": "[US-03] Transcription Engine & Progress Visualizer",
+        "story": "As a user, I want the audio transcribed into structured speaker dialogue with a real-time progress bar, so that I know the pipeline is processing.",
+        "srs_ref": "MM-F-004, MM-F-005, MM-NF-001",
+        "points": 5,
+        "assignee": "Faizz-code9 (Mohammed Faizan)",
+        "sprint": "Sprint 1",
+        "labels": ["user-story", "sprint-1", "core-engine"]
+    },
+    {
+        "id": "US-04",
+        "title": "[US-04] Transcript Cleaning & Filler Word Removal",
+        "story": "As an NLP engine, I want conversational fillers ('um', 'uh', 'like') stripped and timestamps standardized, so that text extraction accuracy is maximized.",
+        "srs_ref": "MM-F-018",
+        "points": 2,
+        "assignee": "Vinay (Vinay M Rampur)",
+        "sprint": "Sprint 1",
+        "labels": ["user-story", "sprint-1", "nlp"]
+    },
+    {
+        "id": "US-05",
+        "title": "[US-05] Action Item & Task Detection",
+        "story": "As a participant, I want tasks extracted using action triggers ('action item:', 'TODO', 'will', 'needs to'), so that commitments are recorded.",
+        "srs_ref": "MM-F-006, MM-F-020",
+        "points": 5,
+        "assignee": "Vinay (Vinay M Rampur)",
+        "sprint": "Sprint 1",
+        "labels": ["user-story", "sprint-1", "nlp"]
+    },
+    {
+        "id": "US-06",
+        "title": "[US-06] Assignee & Deadline Extraction",
+        "story": "As a project lead, I want assignees and date expressions ('by Friday', 'by Monday') linked to each action item, so that task ownership is clear.",
+        "srs_ref": "MM-F-007, MM-F-008",
+        "points": 3,
+        "assignee": "Vinay (Vinay M Rampur)",
+        "sprint": "Sprint 1",
+        "labels": ["user-story", "sprint-1", "nlp"]
+    },
+    {
+        "id": "US-07",
+        "title": "[US-07] Key Decisions & Discussion Points Extraction",
+        "story": "As a team member, I want explicit consensus decisions ('we decided', 'agreed') extracted separately from general discussion, so that agreements are obvious.",
+        "srs_ref": "MM-F-009, MM-F-019",
+        "points": 3,
+        "assignee": "Vinay (Vinay M Rampur)",
+        "sprint": "Sprint 1",
+        "labels": ["user-story", "sprint-1", "nlp"]
+    },
+    {
+        "id": "US-08",
+        "title": "[US-08] SQLite Schema & Data Persistence",
+        "story": "As a backend service, I want meeting metadata, transcripts, and action items stored persistently in an SQLite database, so that data survives server restarts.",
+        "srs_ref": "MM-F-013, MM-NF-006",
+        "points": 3,
+        "assignee": "Anagha (Anagha Kaushik)",
+        "sprint": "Sprint 1",
+        "labels": ["user-story", "sprint-1", "database"]
+    },
+    {
+        "id": "US-09",
+        "title": "[US-09] Structured Markdown Minutes Generator",
+        "story": "As a user, I want a standardized Markdown document generated with meeting metadata, summary, decisions, and action items table, so that it can be reviewed and exported.",
+        "srs_ref": "MM-F-010",
+        "points": 3,
+        "assignee": "Anagha (Anagha Kaushik)",
+        "sprint": "Sprint 1",
+        "labels": ["user-story", "sprint-1", "generator"]
+    },
+    {
+        "id": "US-10",
+        "title": "[US-10] Backend REST API Route Integration",
+        "story": "As a frontend client, I want /api/upload, /api/meetings, and CORS-enabled endpoints, so that the UI can interactively trigger the pipeline.",
+        "srs_ref": "MM-F-001, MM-F-004, MM-F-010",
+        "points": 5,
+        "assignee": "Faizz-code9 (Mohammed Faizan)",
+        "sprint": "Sprint 1",
+        "labels": ["user-story", "sprint-1", "backend"]
+    },
+    {
+        "id": "US-11",
+        "title": "[US-11] Minutes Viewer Dashboard UI",
+        "story": "As a user, I want an interactive Minutes Viewer displaying summary, decision lists, and an action items table with status tags, so that I can inspect meeting output.",
+        "srs_ref": "MM-F-010, MM-NF-002",
+        "points": 3,
+        "assignee": "kamalkanthan (Kamal Kanth N)",
+        "sprint": "Sprint 1",
+        "labels": ["user-story", "sprint-1", "frontend"]
+    },
+    {
+        "id": "US-12",
+        "title": "[US-12] Automated CI/CD Pipeline & Test Suite",
+        "story": "As a QA engineer, I want GitHub Actions to run pytest automatically on every push and PR, so that broken builds are caught immediately.",
+        "srs_ref": "MM-NF-005, MM-NF-006",
+        "points": 3,
+        "assignee": "Anagha (Anagha Kaushik)",
+        "sprint": "Sprint 1",
+        "labels": ["user-story", "sprint-1", "qa-ci"]
+    },
+    {
+        "id": "US-13",
+        "title": "[US-13] Meeting History Listing & Navigation",
+        "story": "As a user, I want a History page listing past meetings sorted by date with 'View' and 'Export' buttons, so that I can revisit earlier discussions.",
+        "srs_ref": "MM-F-014, MM-NF-002",
+        "points": 3,
+        "assignee": "kamalkanthan (Kamal Kanth N)",
+        "sprint": "Sprint 2",
+        "labels": ["user-story", "sprint-2", "frontend"]
+    },
+    {
+        "id": "US-14",
+        "title": "[US-14] Meeting History Search by Title and Date",
+        "story": "As a user, I want an interactive search bar in History to filter meetings instantly by keyword or date, so that I can locate specific discussions in seconds.",
+        "srs_ref": "MM-F-015",
+        "points": 3,
+        "assignee": "kamalkanthan (Kamal Kanth N)",
+        "sprint": "Sprint 2",
+        "labels": ["user-story", "sprint-2", "frontend"]
+    },
+    {
+        "id": "US-15",
+        "title": "[US-15] PDF Minutes Export Service",
+        "story": "As a user, I want to export generated minutes as a downloadable, beautifully formatted PDF document, so that I can print or distribute it to stakeholders.",
+        "srs_ref": "MM-F-011",
+        "points": 5,
+        "assignee": "Anagha (Anagha Kaushik)",
+        "sprint": "Sprint 2",
+        "labels": ["user-story", "sprint-2", "generator"]
+    },
+    {
+        "id": "US-16",
+        "title": "[US-16] Interactive Action Item Status Updating",
+        "story": "As a meeting organizer, I want to toggle action item statuses between 'Pending' and 'Completed' via PUT /api/action-items/<id>, so that I can keep task tracking updated.",
+        "srs_ref": "MM-F-012",
+        "points": 3,
+        "assignee": "Vinay (Vinay M Rampur)",
+        "sprint": "Sprint 2",
+        "labels": ["user-story", "sprint-2", "backend"]
+    },
+    {
+        "id": "US-17",
+        "title": "[US-17] API Security, Sanitization & Audit Logging",
+        "story": "As a system auditor, I want input sanitization, file path traversal protection, and timestamped error logging, so that user data and server storage remain secure.",
+        "srs_ref": "MM-SR-004, MM-SR-006, MM-NF-006",
+        "points": 3,
+        "assignee": "Faizz-code9 (Mohammed Faizan)",
+        "sprint": "Sprint 2",
+        "labels": ["user-story", "sprint-2", "security"]
+    },
+    {
+        "id": "US-18",
+        "title": "[US-18] System Performance & Concurrency QA",
+        "story": "As a QA engineer, I want to execute load tests validating sub-60-second processing and multi-user concurrency, so that NFR benchmarks are verified.",
+        "srs_ref": "MM-NF-001, MM-NF-003",
+        "points": 3,
+        "assignee": "Anagha (Anagha Kaushik)",
+        "sprint": "Sprint 2",
+        "labels": ["user-story", "sprint-2", "testing"]
+    },
+    {
+        "id": "US-19",
+        "title": "[US-19] Traceability Matrix & Documentation Freeze",
+        "story": "As a team lead, I want all SE documents (SRS, SAD, RTM, Test Plan) synchronized with final code and deviations logged, so that deliverables are frozen for evaluation.",
+        "srs_ref": "All Deliverables",
+        "points": 2,
+        "assignee": "Faizz-code9 (Mohammed Faizan)",
+        "sprint": "Sprint 2",
+        "labels": ["user-story", "sprint-2", "documentation"]
+    },
+    {
+        "id": "US-20",
+        "title": "[US-20] Video Demonstration Recordings",
+        "story": "As a project evaluator, I want 1-minute Sprint 1 and 2-minute Sprint 2 product demonstration videos showing working software, so that progress is verifiable.",
+        "srs_ref": "Part-2 Deliverable",
+        "points": 3,
+        "assignee": "kamalkanthan (Kamal Kanth N)",
+        "sprint": "Sprint 2",
+        "labels": ["user-story", "sprint-2", "demo"]
+    }
+]
+
+
+def format_issue_body(story):
+    return (
+        f"### 👤 User Story\n"
+        f"{story['story']}\n\n"
+        f"### 📋 Metadata & Traceability\n"
+        f"- **SRS Reference:** `{story['srs_ref']}`\n"
+        f"- **Story Points:** `{story['points']} SP`\n"
+        f"- **Assigned Member:** {story['assignee']}\n"
+        f"- **Sprint:** **{story['sprint']}**\n\n"
+        f"### ✅ Acceptance Criteria\n"
+        f"- [ ] Implementation conforms to architectural specification in `docs/SAD.md`.\n"
+        f"- [ ] Requirements from `docs/SRS.md` ({story['srs_ref']}) are fully verified.\n"
+        f"- [ ] Associated unit/integration tests pass with exit code 0 (`pytest src/tests/`).\n"
+        f"- [ ] GitHub Actions CI check is passing on feature PR.\n"
+    )
+
+
+def main():
+    print(f"Loaded {len(USER_STORIES)} user stories (Total Story Points: {sum(s['points'] for s in USER_STORIES)}).")
+    token = os.environ.get("GITHUB_TOKEN")
+
+    if not token:
+        print("\n[INFO] GITHUB_TOKEN environment variable not detected.")
+        print("Exporting user stories to 'docs/github_issues.json' for reference...")
+        with open(os.path.join("docs", "github_issues.json"), "w", encoding="utf-8") as f:
+            json.dump(USER_STORIES, f, indent=2)
+        print("Done! You can use this file or manually create issues on GitHub Projects.")
+        return
+
+    # If token present, attempt GitHub API issue creation
+    repo = "Faizz-code9/MAXI"
+    url = f"https://api.github.com/repos/{repo}/issues"
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github.v3+json",
+        "User-Agent": "MiniMax-Issues-Bot"
+    }
+
+    print(f"Creating issues on GitHub repo: {repo}...")
+    for story in USER_STORIES:
+        payload = {
+            "title": story["title"],
+            "body": format_issue_body(story),
+            "labels": story["labels"]
+        }
+        req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST")
+        try:
+            with urllib.request.urlopen(req) as resp:
+                res_data = json.loads(resp.read().decode("utf-8"))
+                print(f"Created Issue #{res_data.get('number')}: {story['title']}")
+        except urllib.error.HTTPError as e:
+            print(f"Failed to create {story['title']}: {e}")
+
+
+if __name__ == "__main__":
+    main()
