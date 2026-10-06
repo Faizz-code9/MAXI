@@ -4,7 +4,7 @@
 **Version:** 1.0  
 **Author / QA Lead:** Anagha Kaushik (`PES1UG24AM459`)  
 **Contributors:** Mohammed Faizan (`PES1UG24AM472`), Vinay M Rampur (`PES1UG24AM455`), Kamal Kanth N (`PES1UG24AM434`)  
-**Date:** October 2026  
+**Date:** 20-Sep-2026  
 **Status:** Approved / Active Baseline  
 **Course:** Software Engineering (SE) Mini-Project Deliverables  
 
@@ -167,7 +167,7 @@ flowchart TD
 
 | Milestone | Window | Focus / Activities | Owner |
 |---|---|---|---|
-| **STP Baseline & Test Design** | 06-Oct-2026 | Test plan creation, test case specification, RTM mapping. | Anagha Kaushik |
+| **STP Baseline & Test Design** | 20-Sep-2026 | Test plan creation, test case specification, RTM mapping. | Anagha Kaushik |
 | **Sprint Dry Run (Practice)** | 12-Oct – 16-Oct-2026 | CI automation verification, feature branch PR tests. | All Team Members |
 | **Sprint 1 Test Execution** | 19-Oct – 23-Oct-2026 | Unit tests for extractor, transcriber, API routes; 1-min video test. | Anagha & Faizan |
 | **Sprint 2 Test Execution** | 26-Oct – 29-Oct-2026 | PDF export tests, history search tests, security checks; 2-min video test. | Anagha & Vinay |
@@ -275,7 +275,7 @@ The following matrix traces every requirement from `docs/SRS.md` directly to its
 
 | Role | Name | SRN | Signature / Approval Status | Date |
 |---|---|---|---|---|
-| **QA Lead** | Anagha Kaushik | `PES1UG24AM459` | **APPROVED** | 06-Oct-2026 |
-| **Dev Lead / Repo Owner** | Mohammed Faizan | `PES1UG24AM472` | **APPROVED** | 06-Oct-2026 |
-| **Backend Developer** | Vinay M Rampur | `PES1UG24AM455` | **APPROVED** | 06-Oct-2026 |
-| **Frontend Developer** | Kamal Kanth N | `PES1UG24AM434` | **APPROVED** | 06-Oct-2026 |
+| **QA Lead** | Anagha Kaushik | `PES1UG24AM459` | **APPROVED** | 20-Sep-2026 |
+| **Dev Lead / Repo Owner** | Mohammed Faizan | `PES1UG24AM472` | **APPROVED** | 20-Sep-2026 |
+| **Backend Developer** | Vinay M Rampur | `PES1UG24AM455` | **APPROVED** | 20-Sep-2026 |
+| **Frontend Developer** | Kamal Kanth N | `PES1UG24AM434` | **APPROVED** | 20-Sep-2026 |
