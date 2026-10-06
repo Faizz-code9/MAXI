@@ -123,6 +123,22 @@ def add_action_items(meeting_id: int, items: List[Dict[str, str]]) -> None:
     conn.commit()
     conn.close()
 
+def update_action_item_status(action_item_id: int, status: str) -> bool:
+    """Updates the status of an action item."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "UPDATE action_items SET status = ? WHERE id = ?",
+        (status, action_item_id)
+    )
+
+    updated = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+
+    return updated
+
 
 def update_meeting_processed(meeting_id: int, summary: str, processed_transcript: str) -> None:
     """Updates meeting with generated summary and clean transcript."""

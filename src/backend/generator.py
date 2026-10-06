@@ -9,6 +9,7 @@ conforming to the MiniMax standardized layout.
 """
 
 from typing import Dict, List, Any
+import os
 
 
 def generate_markdown_minutes(
@@ -79,3 +80,17 @@ def generate_markdown_minutes(
     doc.append("")
 
     return "\n".join(doc)
+
+def save_markdown_minutes(markdown_content: str, filename: str, output_dir: str = "exports") -> str:
+    """Saves generated meeting minutes as a Markdown file."""
+    os.makedirs(output_dir, exist_ok=True)
+
+    if not filename.endswith(".md"):
+        filename += ".md"
+
+    file_path = os.path.join(output_dir, filename)
+
+    with open(file_path, "w", encoding="utf-8") as file:
+        file.write(markdown_content)
+
+    return file_path
