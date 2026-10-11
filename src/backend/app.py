@@ -70,6 +70,26 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024  # 100 MB
 
 
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    """Handles files exceeding the 100 MB limit (US-02 / MM-F-003)."""
+    return jsonify({
+        "success": False,
+        "error": "File exceeds maximum allowed limit of 100 MB."
+    }), 413
+
+
+@app.route("/api/health", methods=["GET"])
+def health_check():
+    """Health check endpoint verifying API & supported formats (US-10)."""
+    return jsonify({
+        "success": True,
+        "status": "healthy",
+        "supported_formats": ["mp3", "wav", "m4a"],
+        "max_upload_mb": 100
+    }), 200
+
+
 @app.route("/")
 def index():
     """Serves the Single Page Application dashboard."""
@@ -108,6 +128,7 @@ def upload_audio():
         transcription_result = transcribe_audio(file_path)
         raw_text = transcription_result["raw_transcript"]
         duration = transcription_result["duration"]
+        processing_time_ms = transcription_result.get("processing_time_ms", 0.0)
 
         # Step 2: Clean and normalize text
         cleaned_text = clean_transcript(raw_text)
@@ -146,6 +167,7 @@ def upload_audio():
             "title": title,
             "date": meeting_date,
             "duration": duration,
+            "processing_time_ms": processing_time_ms,
             "attendees": attendees,
             "summary": summary,
             "decisions": decisions,
