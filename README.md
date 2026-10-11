@@ -10,10 +10,12 @@
 
 ---
 
-## 🎯 SE Deliverables Part-2 Quick Links
+## 🎯 Official SE Deliverables & Quick Links
 
-* 📊 **Product Backlog & Sprint Plan (Markdown):** [`docs/BACKLOG_AND_SPRINT_PLAN.md`](docs/BACKLOG_AND_SPRINT_PLAN.md)
-* 📄 **Product Backlog & Sprint Plan (Word .docx):** [`docs/BACKLOG_AND_SPRINT_PLAN.docx`](docs/BACKLOG_AND_SPRINT_PLAN.docx)
+* 📄 **Software Requirements Specification (IEEE 830):** [`docs/SRS.docx`](docs/SRS.docx)
+* 🏛️ **Software Architecture Document (SAD):** [`docs/SAD.docx`](docs/SAD.docx)
+* 🧪 **Software Test Plan (IEEE 829):** [`docs/Test_Plan.docx`](docs/Test_Plan.docx)
+* 📊 **Product Backlog & Two-Sprint Plan:** [`docs/BACKLOG_AND_SPRINT_PLAN.docx`](docs/BACKLOG_AND_SPRINT_PLAN.docx)
 * 🤖 **GitHub Actions CI Workflow:** [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
 * 📋 **Pull Request Template:** [`.github/pull_request_template.md`](.github/pull_request_template.md)
 * 📌 **User Story Issue Template:** [`.github/ISSUE_TEMPLATE/user_story.md`](.github/ISSUE_TEMPLATE/user_story.md)
