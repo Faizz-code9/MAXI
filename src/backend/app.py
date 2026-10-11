@@ -13,8 +13,19 @@ Exposes REST API endpoints defined in SAD Section 4.3:
 """
 
 import os
+import html
+import logging
 from datetime import datetime
 from flask import Flask, request, jsonify, render_template, send_file, Response
+from werkzeug.utils import secure_filename
+
+# Configure Audit Logger (US-17 / MM-SR-006)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+audit_logger = logging.getLogger("minimax.audit")
+
 try:
     from flask_cors import CORS
     HAS_CORS = True
@@ -64,6 +75,7 @@ def add_cors_headers(response):
     response.headers["Access-Control-Allow-Origin"] = "*"
     response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
     response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,DELETE,OPTIONS"
+    response.headers["X-Content-Type-Options"] = "nosniff"
     return response
 
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
@@ -73,6 +85,7 @@ app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024  # 100 MB
 @app.errorhandler(413)
 def request_entity_too_large(error):
     """Handles files exceeding the 100 MB limit (US-02 / MM-F-003)."""
+    audit_logger.warning("Rejected upload: payload exceeded 100 MB limit.")
     return jsonify({
         "success": False,
         "error": "File exceeds maximum allowed limit of 100 MB."
@@ -103,25 +116,31 @@ def upload_audio():
     Upload -> Transcribe -> Clean -> Extract -> Save -> Generate
     """
     if "audio" not in request.files:
+        audit_logger.warning("Upload rejected: no audio file part in request.")
         return jsonify({"success": False, "error": "No audio file provided."}), 400
 
     file = request.files["audio"]
     if file.filename == "":
+        audit_logger.warning("Upload rejected: empty filename.")
         return jsonify({"success": False, "error": "No file selected."}), 400
 
     if not allowed_file(file.filename):
+        audit_logger.warning("Upload rejected: unsupported extension '%s'.", file.filename)
         return jsonify({
             "success": False,
             "error": "Invalid format. Only .mp3, .wav, and .m4a are accepted."
         }), 400
 
-    title = request.form.get("title", "").strip() or f"Meeting on {datetime.now().strftime('%Y-%m-%d')}"
-    meeting_date = request.form.get("date", "").strip() or datetime.now().strftime("%Y-%m-%d")
+    raw_title = request.form.get("title", "").strip() or f"Meeting on {datetime.now().strftime('%Y-%m-%d')}"
+    title = html.escape(raw_title)
+    meeting_date = html.escape(request.form.get("date", "").strip() or datetime.now().strftime("%Y-%m-%d"))
 
-    # Save audio file to uploads/
-    saved_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
+    # Sanitize filename against path traversal (US-17 / MM-SR-004)
+    safe_base = secure_filename(file.filename) or "recording.mp3"
+    saved_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{safe_base}"
     file_path = os.path.join(app.config["UPLOAD_FOLDER"], saved_filename)
     file.save(file_path)
+    audit_logger.info("Saved sanitized audio upload '%s' for meeting '%s'.", saved_filename, title)
 
     try:
         # Step 1: Transcribe audio
