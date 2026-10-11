@@ -136,3 +136,14 @@ def test_export_pdf_endpoint(client):
     assert resp3.status_code == 200
     assert b"Meeting Minutes" in resp3.data
 
+
+def test_health_check_endpoint(client):
+    """Verifies GET /api/health endpoint for US-10 (#14) and US-02 (#6)."""
+    resp = client.get("/api/health")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["success"] is True
+    assert data["status"] == "healthy"
+    assert "mp3" in data["supported_formats"]
+    assert data["max_upload_mb"] == 100
+

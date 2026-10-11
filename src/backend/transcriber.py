@@ -9,6 +9,7 @@ Supports: MP3, WAV, M4A format verification and size checks (<= 100 MB).
 """
 
 import os
+import time
 from typing import Tuple, Dict, Any
 
 ALLOWED_EXTENSIONS = {"mp3", "wav", "m4a"}
@@ -45,6 +46,7 @@ def transcribe_audio(file_path: str) -> Dict[str, Any]:
     In Sprint 1, implements an intelligent transcription stub that yields realistic
     dialogue turns, speakers, and action items.
     """
+    start_time = time.perf_counter()
     is_valid, error = validate_audio_file(file_path)
     if not is_valid:
         raise ValueError(error)
@@ -62,10 +64,12 @@ def transcribe_audio(file_path: str) -> Dict[str, Any]:
         "[00:02:00] Lead: Action item: Anagha to run pytest test suites and generate markdown minutes by Wednesday.\n"
         "[00:02:20] Lead: Meeting adjourned. Great work everyone!"
     )
+    elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
 
     return {
         "audio_filename": filename,
         "duration": "00:02:25",
         "raw_transcript": stub_transcript,
+        "processing_time_ms": elapsed_ms,
         "status": "Transcribed"
     }
