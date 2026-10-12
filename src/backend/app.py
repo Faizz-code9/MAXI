@@ -38,6 +38,7 @@ from models import (
     get_meeting,
     list_meetings,
     add_action_items,
+    update_action_item_status,
     update_meeting_processed,
     get_db_connection
 )
@@ -368,17 +369,47 @@ def export_meeting_pdf(meeting_id):
 
 @app.route("/api/action-items/<int:item_id>", methods=["PUT"])
 def update_action_item(item_id):
-    """Toggles action item status (Pending <-> Completed)."""
-    data = request.get_json() or {}
-    new_status = data.get("status", "Completed")
+    """Updates an action item's status to Pending or Completed."""
+    data = request.get_json(silent=True)
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("UPDATE action_items SET status = ? WHERE id = ?", (new_status, item_id))
-    conn.commit()
-    conn.close()
+    if not isinstance(data, dict):
+        return jsonify({
+            "success": False,
+            "error": "A JSON request body is required."
+        }), 400
 
-    return jsonify({"success": True, "status": new_status}), 200
+    new_status = data.get("status")
+
+    if not isinstance(new_status, str) or new_status not in {
+        "Pending",
+        "Completed"
+    }:
+        return jsonify({
+            "success": False,
+            "error": "Status must be Pending or Completed."
+        }), 400
+
+    try:
+        updated = update_action_item_status(item_id, new_status)
+    except Exception:
+        audit_logger.exception(
+            "Failed to update action item %s", item_id
+        )
+        return jsonify({
+            "success": False,
+            "error": "Failed to update action item."
+        }), 500
+
+    if not updated:
+        return jsonify({
+            "success": False,
+            "error": "Action item not found."
+        }), 404
+
+    return jsonify({
+        "success": True,
+        "status": new_status
+    }), 200
 
 
 if __name__ == "__main__":
