@@ -230,7 +230,12 @@ def extract_action_items(
     date = rf"(?:{month})\s+\d{{1,2}}|\d{{1,2}}\s+(?:{month})"
     # Keep multiword phrases together so the deadline is not reduced to just
     # the final weekday/month expression.
-    deadline_pattern = rf"(?:today|tomorrow|tonight|eod|end\s+of\s+day|this\s+week|next\s+week|next\s+month|(?:{weekday})(?:\s+(?:morning|afternoon|evening))?|(?:before|by|due\s+on)\s+(?:next\s+)?(?:{weekday}|{date})|within\s+\w+(?:\s+\w+)?)"
+    deadline_pattern = (
+        rf"(?:today|tomorrow|tonight|eod|end\s+of\s+day|this\s+week|"
+        rf"next\s+week|next\s+month|(?:{weekday})(?:\s+(?:morning|afternoon|evening))?|"
+        rf"(?:before|by|due\s+on)\s+(?:next\s+)?(?:{weekday}|{date})|"
+        rf"(?:{date})|within\s+\w+(?:\s+\w+)?)"
+    )
 
     # Assignee names may contain up to three words, e.g. Kamal Kanth.
     name = r"[A-Za-z][A-Za-z0-9_-]*(?:\s+[A-Za-z][A-Za-z0-9_-]*){0,2}"
@@ -278,6 +283,7 @@ def extract_action_items(
         if not clean_line:
             continue
 
+        # Remove an optional timestamp at the beginning of a line.
         clean_line = re.sub(
             r"^\[\d{1,3}:\d{1,2}:\d{1,2}\]\s*", "", clean_line
         ).strip()
@@ -313,10 +319,15 @@ def extract_action_items(
 
         # Remove polite trailing language if the deadline wasn't recognized.
         task = re.sub(r"\s*,?\s*(?:please|thanks)[.!]*$", "", task, flags=re.IGNORECASE).strip()
-        if not task or task.lower().rstrip(".!?") in non_actionable_tasks:
+        task_lower = task.lower().rstrip(".!?").strip()
+
+        if assignee.lower() in {"i", "we", "you", "they", "he", "she"}:
             continue
-        # Avoid treating first-person availability statements as assigned work.
-        if assignee.lower() in {"i", "we", "you"} and task.lower().startswith(("be available", "be there", "be present")):
+
+        if not task_lower or any(
+            task_lower == phrase or task_lower.startswith(phrase + " ")
+            for phrase in non_actionable_tasks
+        ):
             continue
 
         action_items.append({
@@ -326,6 +337,7 @@ def extract_action_items(
             "status": "Pending",
         })
 
+    # Deduplicate identical task/assignee pairs, ignoring case.
     unique_items: List[Dict[str, str]] = []
     seen = set()
     for item in action_items:
