@@ -112,8 +112,30 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    const file = audioInput.files[0];
-    const formData = new FormData();
+const file = audioInput.files[0];
+
+// Check supported audio file types
+const allowedExtensions = [".mp3", ".wav", ".m4a"];
+const fileNameLower = file.name.toLowerCase();
+const isAllowedType = allowedExtensions.some(ext => fileNameLower.endsWith(ext));
+
+if (!isAllowedType) {
+  alert("Unsupported file type. Please select an MP3, WAV, or M4A file.");
+  audioInput.value = "";
+  fileInfo.classList.add("hidden");
+  return;
+}
+
+// Check maximum file size: 100 MB
+const maxFileSize = 100 * 1024 * 1024;
+if (file.size > maxFileSize) {
+  alert("File is too large. Maximum allowed size is 100 MB.");
+  audioInput.value = "";
+  fileInfo.classList.add("hidden");
+  return;
+}
+
+const formData = new FormData();
     formData.append("audio", file);
     formData.append("title", meetingTitleInput.value);
     formData.append("date", meetingDateInput.value);
