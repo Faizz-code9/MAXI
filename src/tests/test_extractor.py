@@ -1,20 +1,19 @@
 """
 Unit Tests for Text Preprocessor & Extractor Modules
 ===================================================
+
 Owner: Anagha Kaushik (PES1UG24AM459) & Vinay M Rampur (PES1UG24AM455)
 Phase: 3 - Implementation Sprint 1
 """
 
-import sys
 import os
+import sys
 import pytest
 
 # Add backend directory to sys.path
 sys.path.insert(
     0,
-    os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "backend")
-    )
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend")),
 )
 
 from preprocessor import clean_transcript, remove_filler_words
@@ -33,7 +32,6 @@ from generator import generate_markdown_minutes, save_markdown_minutes
 
 def test_remove_filler_words():
     raw = "Um, Alice will, like, basically complete the report, you know."
-
     cleaned = remove_filler_words(raw)
 
     assert "um" not in cleaned.lower()
@@ -52,7 +50,6 @@ def test_extract_attendees():
         "[00:01:10] Bob: Hi Alice.\n"
         "[00:01:20] Charlie: Good morning.\n"
     )
-
     attendees = extract_attendees(dialogue)
 
     assert "Alice" in attendees
@@ -66,7 +63,6 @@ def test_extract_attendees_normalizes_names():
     [00:02:00] BOB: Hi.
     [00:03:00] Kamal: Good morning.
     """
-
     attendees = extract_attendees(transcript)
 
     assert "Alice" in attendees
@@ -83,7 +79,6 @@ def test_extract_decisions():
         "Alice: Decision: SQLite will be used for Sprint 1.\n"
         "Bob: We decided to deploy locally on port 5000.\n"
     )
-
     decisions = extract_decisions(dialogue)
 
     assert len(decisions) >= 2
@@ -96,7 +91,6 @@ def test_extract_multiple_decisions():
     [00:02:00] Bob: We decided to use SQLite.
     [00:03:00] Kamal: Consensus is to use REST APIs.
     """
-
     decisions = extract_decisions(transcript)
 
     assert len(decisions) == 3
@@ -114,11 +108,9 @@ def test_extract_action_items():
         "Action item: Bob will finalize the database models by Friday\n"
         "Charlie to implement drag-and-drop audio upload UI by Monday\n"
     )
-
     items = extract_action_items(dialogue)
 
     assert len(items) >= 2
-
     bob_item = next(
         (item for item in items if item["assignee"].lower() == "bob"),
         None,
@@ -133,7 +125,6 @@ def test_extract_action_item_with_deadline():
     transcript = """
     [00:01:00] Alice: Bob will finalize the database models by Friday.
     """
-
     items = extract_action_items(transcript)
 
     assert len(items) == 1
@@ -147,7 +138,6 @@ def test_extract_action_item_without_deadline():
     transcript = """
     [00:01:00] Alice: Bob will update the API documentation.
     """
-
     items = extract_action_items(transcript)
 
     assert len(items) == 1
@@ -162,7 +152,6 @@ def test_extract_todo_action_item():
     transcript = """
     [00:02:00] Alice: TODO: Kamal will update the dashboard by Monday.
     """
-
     items = extract_action_items(transcript)
 
     assert len(items) == 1
@@ -175,7 +164,6 @@ def test_extract_to_pattern_action_item():
     transcript = """
     [00:03:00] Alice: Charlie to implement the upload UI by Monday.
     """
-
     items = extract_action_items(transcript)
 
     assert len(items) == 1
@@ -190,17 +178,13 @@ def test_extract_multiple_action_items():
     [00:02:00] Bob: Kamal will test the dashboard by Monday.
     [00:03:00] Kamal: Charlie will deploy the application tomorrow.
     """
-
     items = extract_action_items(transcript)
 
     assert len(items) == 3
-
     assert items[0]["assignee"] == "Bob"
     assert items[0]["deadline"] == "Friday"
-
     assert items[1]["assignee"] == "Kamal"
     assert items[1]["deadline"] == "Monday"
-
     assert items[2]["assignee"] == "Charlie"
     assert items[2]["deadline"] == "tomorrow"
 
@@ -210,7 +194,6 @@ def test_action_items_are_deduplicated():
     [00:01:00] Alice: Bob will update the API by Friday.
     [00:02:00] Bob: Bob will update the API by Friday.
     """
-
     items = extract_action_items(transcript)
 
     assert len(items) == 1
@@ -220,7 +203,6 @@ def test_extract_action_item_with_multiword_assignee():
     transcript = """
     [00:01:00] Alice: Kamal Kanth will update the dashboard by Friday.
     """
-
     items = extract_action_items(transcript)
 
     assert len(items) == 1
@@ -233,7 +215,6 @@ def test_extract_action_item_with_punctuation_after_deadline():
     transcript = """
     [00:01:00] Alice: Bob will update the API by Friday, please.
     """
-
     items = extract_action_items(transcript)
 
     assert len(items) == 1
@@ -248,7 +229,6 @@ def test_ordinary_conversation_is_not_an_action_item():
     [00:02:00] Bob: I will be available tomorrow.
     [00:03:00] Charlie: We discussed the dashboard yesterday.
     """
-
     items = extract_action_items(transcript)
 
     assert items == []
@@ -262,7 +242,6 @@ def test_extract_deadline_due_on_date():
     transcript = """
     [00:01:00] Alice: Bob will submit the report due on 15 September.
     """
-
     items = extract_action_items(transcript)
 
     assert len(items) == 1
@@ -274,7 +253,6 @@ def test_extract_deadline_before_next_weekday():
     transcript = """
     [00:01:00] Alice: Bob will finish the documentation before next Monday.
     """
-
     items = extract_action_items(transcript)
 
     assert len(items) == 1
@@ -286,7 +264,6 @@ def test_extract_deadline_within_two_weeks():
     transcript = """
     [00:01:00] Alice: Bob will complete the integration within two weeks.
     """
-
     items = extract_action_items(transcript)
 
     assert len(items) == 1
@@ -302,7 +279,6 @@ def test_extract_multiword_assignee_responsible_for():
     transcript = """
     [00:01:00] Alice: Anagha Kaushik is responsible for preparing the test report.
     """
-
     items = extract_action_items(transcript)
 
     assert len(items) == 1
@@ -314,19 +290,18 @@ def test_extract_multiword_assignee_assigned_to():
     transcript = """
     [00:01:00] Alice: Action item: Kamal Kanth will update the dashboard.
     """
-
     items = extract_action_items(transcript)
 
     assert len(items) == 1
     assert items[0]["assignee"] == "Kamal Kanth"
     assert items[0]["task"] == "update the dashboard"
+    assert items[0]["deadline"] == ""
 
 
 def test_missing_deadline_is_empty():
     transcript = """
     [00:01:00] Alice: Bob will update the API.
     """
-
     items = extract_action_items(transcript)
 
     assert len(items) == 1
@@ -363,7 +338,6 @@ def test_generate_markdown_minutes():
 
 def test_save_markdown_minutes(tmp_path):
     content = "# Meeting Minutes\n\nTest meeting."
-
     file_path = save_markdown_minutes(
         content,
         "test_meeting",
