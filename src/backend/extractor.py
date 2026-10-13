@@ -217,378 +217,119 @@ def extract_decisions(transcript_text: str) -> List[str]:
 def extract_action_items(
     transcript_text: str,
 ) -> List[Dict[str, str]]:
+    """Extract actionable commitments from a meeting transcript.
+
+    Each result contains task, assignee, deadline, and status. This uses
+    deterministic regex heuristics; it is not a general-purpose NLP parser.
     """
-    Extract action items from a meeting transcript.
-
-    Supported patterns:
-
-        Action item: Bob will finalize the database models by Friday.
-
-        TODO: Alice will update the API by Monday.
-
-        Charlie to implement the upload UI by Monday.
-
-        Dave will test the application.
-
-        Kamal is responsible for updating the dashboard by Monday.
-
-    Returns:
-
-        [
-            {
-                "task": "...",
-                "assignee": "...",
-                "deadline": "...",
-                "status": "Pending"
-            }
-        ]
-    """
-
     action_items: List[Dict[str, str]] = []
 
-    # ------------------------------------------------------------------
-    # Deadline pattern
-    # ------------------------------------------------------------------
-
+    month = (
+        r"jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|"
+        r"jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|sept(?:ember)?|"
+        r"oct(?:ober)?|nov(?:ember)?|dec(?:ember)?"
+    )
+    weekday = r"monday|tuesday|wednesday|thursday|friday|saturday|sunday"
     deadline_pattern = (
-        r"(?:"
-        r"today"
-        r"|tomorrow"
-        r"|tonight"
-        r"|eod"
-        r"|end\s+of\s+day"
-        r"|this\s+week"
-        r"|next\s+week"
-        r"|next\s+month"
-        r"|monday"
-        r"|tuesday"
-        r"|wednesday"
-        r"|thursday"
-        r"|friday"
-        r"|saturday"
-        r"|sunday"
-        r"|(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)"
-        r"\s+(?:morning|afternoon|evening)"
-        r"|(?:"
-        r"jan(?:uary)?"
-        r"|feb(?:ruary)?"
-        r"|mar(?:ch)?"
-        r"|apr(?:il)?"
-        r"|may"
-        r"|jun(?:e)?"
-        r"|jul(?:y)?"
-        r"|aug(?:ust)?"
-        r"|sep(?:tember)?"
-        r"|sept(?:ember)?"
-        r"|oct(?:ober)?"
-        r"|nov(?:ember)?"
-        r"|dec(?:ember)?"
-        r")\s+\d{1,2}"
-        r"|(?:\d{1,2}\s+"
-        r"(?:"
-        r"jan(?:uary)?"
-        r"|feb(?:ruary)?"
-        r"|mar(?:ch)?"
-        r"|apr(?:il)?"
-        r"|may"
-        r"|jun(?:e)?"
-        r"|jul(?:y)?"
-        r"|aug(?:ust)?"
-        r"|sep(?:tember)?"
-        r"|sept(?:ember)?"
-        r"|oct(?:ober)?"
-        r"|nov(?:ember)?"
-        r"|dec(?:ember)?"
-        r"))"
-        r")"
+        rf"(?:today|tomorrow|tonight|eod|end\s+of\s+day|this\s+week|"
+        rf"next\s+week|next\s+month|(?:{weekday})(?:\s+(?:morning|afternoon|evening))?|"
+        rf"(?:{month})\s+\d{{1,2}}|\d{{1,2}}\s+(?:{month}))"
     )
 
-    # ------------------------------------------------------------------
-    # Pattern 1:
-    #
-    # Action item: Bob will finalize the database models by Friday
-    # TODO: Alice should update the API by Monday
-    # Task: Charlie needs to test the application
-    # ------------------------------------------------------------------
+    # Allow up to three name components, e.g. "Kamal Kanth".
+    assignee_pattern = r"[A-Za-z][A-Za-z0-9_-]*(?:\s+[A-Za-z][A-Za-z0-9_-]*){0,2}"
+    trailing = r"(?:\s*,?\s*(?:please|thanks))?[\s.,;!]*$"
+    deadline_suffix = rf"(?:\s+(?:by\s+)?(?P<deadline>{deadline_pattern}))?{trailing}"
 
     explicit_pattern = re.compile(
-        rf"""
-        ^\s*
-
-        (?:action\s+item|todo|task)
-        \s*:\s*
-
-        (?:
-            (?P<assignee>
-                [A-Za-z][A-Za-z0-9_-]*
-            )
-            \s+
-        )?
-
-        (?:
-            will
-            |should
-            |needs?\s+to
-            |is\s+assigned\s+to
-            |is\s+responsible\s+for
-            |to
-        )
-        \s+
-
-        (?P<task>.*?)
-
-        (?:
-            \s+
-            (?:by\s+)?
-            (?P<deadline>{deadline_pattern})
-        )?
-
-        \s*$
-        """,
-        re.IGNORECASE | re.VERBOSE,
+        rf"^\s*(?:action\s+item|todo|task)\s*:\s*"
+        rf"(?:(?P<assignee>{assignee_pattern})\s+)?"
+        rf"(?:will|should|needs?\s+to|is\s+assigned\s+to|"
+        rf"is\s+responsible\s+for|to)\s+"
+        rf"(?P<task>.+?){deadline_suffix}",
+        re.IGNORECASE,
     )
-
-    # ------------------------------------------------------------------
-    # Pattern 2:
-    #
-    # Charlie will implement the upload UI by Monday
-    # Alice should update the API
-    # Bob needs to test the backend
-    # ------------------------------------------------------------------
-
     commitment_pattern = re.compile(
-        rf"""
-        ^\s*
-
-        (?P<assignee>
-            [A-Za-z][A-Za-z0-9_-]*
-        )
-
-        \s+
-
-        (?:
-            will
-            |should
-            |needs?\s+to
-            |is\s+assigned\s+to
-            |is\s+responsible\s+for
-        )
-
-        \s+
-
-        (?P<task>.*?)
-
-        (?:
-            \s+
-            (?:by\s+)?
-            (?P<deadline>{deadline_pattern})
-        )?
-
-        \s*$
-        """,
-        re.IGNORECASE | re.VERBOSE,
+        rf"^\s*(?P<assignee>{assignee_pattern})\s+"
+        rf"(?:will|should|needs?\s+to|is\s+assigned\s+to|"
+        rf"is\s+responsible\s+for)\s+"
+        rf"(?P<task>.+?){deadline_suffix}",
+        re.IGNORECASE,
     )
-
-    # ------------------------------------------------------------------
-    # Pattern 3:
-    #
-    # Charlie to implement the upload UI by Monday
-    # Alice to test the backend
-    # ------------------------------------------------------------------
-
     to_pattern = re.compile(
-        rf"""
-        ^\s*
-
-        (?P<assignee>
-            [A-Za-z][A-Za-z0-9_-]*
-        )
-
-        \s+
-        to
-        \s+
-
-        (?P<task>.*?)
-
-        (?:
-            \s+
-            (?:by\s+)?
-            (?P<deadline>{deadline_pattern})
-        )?
-
-        \s*$
-        """,
-        re.IGNORECASE | re.VERBOSE,
+        rf"^\s*(?P<assignee>{assignee_pattern})\s+to\s+"
+        rf"(?P<task>.+?){deadline_suffix}",
+        re.IGNORECASE,
     )
 
-    # ------------------------------------------------------------------
-    # Process each transcript line
-    # ------------------------------------------------------------------
+    # These are statements, not concrete deliverables.
+    non_actionable_tasks = {
+        "be available", "be there", "attend the meeting",
+        "join the meeting", "be present",
+    }
 
     for line in transcript_text.splitlines():
-
-        line = line.strip()
-
-        if not line:
+        clean_line = line.strip()
+        if not clean_line:
             continue
 
-        # Remove timestamp.
+        # Remove an optional timestamp at the beginning of a line.
         clean_line = re.sub(
-            r"^\s*\[\d{1,3}:\d{1,2}:\d{1,2}\]\s*",
-            "",
-            line,
+            r"^\[\d{1,3}:\d{1,2}:\d{1,2}\]\s*", "", clean_line
         ).strip()
 
-        # Remove normal speaker prefix.
-        #
-        # Do NOT remove prefixes such as:
-        # Action item:
-        # TODO:
-        # Task:
-        # Decision:
-        # Summary:
-        # Note:
+        # Remove a speaker label, but keep extraction labels such as TODO:.
         speaker_match = re.match(
-            r"^(?P<speaker>[A-Za-z][A-Za-z0-9 _-]{0,30})"
-            r"\s*:\s*"
-            r"(?P<message>.*)$",
+            r"^(?P<speaker>[A-Za-z][A-Za-z0-9 _-]{0,30})\s*:\s*(?P<message>.*)$",
             clean_line,
         )
-
         if speaker_match:
+            label = speaker_match.group("speaker").strip().lower()
+            if label not in {"action item", "todo", "task", "decision", "summary", "note"}:
+                clean_line = speaker_match.group("message").strip()
 
-            possible_speaker = (
-                speaker_match.group("speaker").strip()
-            )
-
-            if possible_speaker.lower() not in {
-                "action item",
-                "todo",
-                "task",
-                "decision",
-                "summary",
-                "note",
-            }:
-                clean_line = (
-                    speaker_match.group("message").strip()
-                )
-
-        # Remove trailing punctuation.
-        clean_line = clean_line.rstrip(".")
-
-        # --------------------------------------------------------------
-        # Explicit action item
-        # --------------------------------------------------------------
-
+        # Try explicit labels before unlabelled commitment formats.
         match = explicit_pattern.match(clean_line)
-
-        if match:
-
-            assignee = _normalize_assignee(
-                match.group("assignee")
-            )
-
-            task = _normalize_task(
-                match.group("task")
-            )
-
-            deadline = _normalize_deadline(
-                match.group("deadline")
-            )
-
-            if task:
-                action_items.append(
-                    {
-                        "task": task,
-                        "assignee": assignee,
-                        "deadline": deadline,
-                        "status": "Pending",
-                    }
-                )
-
+        if not match:
+            match = commitment_pattern.match(clean_line)
+        if not match:
+            match = to_pattern.match(clean_line)
+        if not match:
             continue
 
-        # --------------------------------------------------------------
-        # Commitment pattern
-        # --------------------------------------------------------------
+        assignee = _normalize_assignee(match.group("assignee"))
+        task = _normalize_task(match.group("task"))
+        deadline = _normalize_deadline(match.group("deadline"))
 
-        match = commitment_pattern.match(clean_line)
+        task_lower = task.lower().rstrip(".!?").strip()
+        assignee_lower = assignee.lower()
 
-        if match:
-
-            assignee = _normalize_assignee(
-                match.group("assignee")
-            )
-
-            task = _normalize_task(
-                match.group("task")
-            )
-
-            deadline = _normalize_deadline(
-                match.group("deadline")
-            )
-
-            if task:
-                action_items.append(
-                    {
-                        "task": task,
-                        "assignee": assignee,
-                        "deadline": deadline,
-                        "status": "Pending",
-                    }
-                )
-
+        # First-person/general availability statements are not assignments.
+        if assignee_lower in {"i", "we", "you", "they", "he", "she"}:
             continue
 
-        # --------------------------------------------------------------
-        # "Name to task" pattern
-        # --------------------------------------------------------------
+        # Ignore non-deliverable statements even when a deadline was captured.
+        if not task_lower or any(
+            task_lower == phrase or task_lower.startswith(phrase + " ")
+            for phrase in non_actionable_tasks
+        ):
+            continue
 
-        match = to_pattern.match(clean_line)
+        action_items.append({
+            "task": task,
+            "assignee": assignee,
+            "deadline": deadline,
+            "status": "Pending",
+        })
 
-        if match:
-
-            assignee = _normalize_assignee(
-                match.group("assignee")
-            )
-
-            task = _normalize_task(
-                match.group("task")
-            )
-
-            deadline = _normalize_deadline(
-                match.group("deadline")
-            )
-
-            if task:
-                action_items.append(
-                    {
-                        "task": task,
-                        "assignee": assignee,
-                        "deadline": deadline,
-                        "status": "Pending",
-                    }
-                )
-
-    # ------------------------------------------------------------------
-    # Deduplicate action items
-    # ------------------------------------------------------------------
-
+    # Deduplicate identical task/assignee pairs, ignoring case.
     unique_items: List[Dict[str, str]] = []
     seen = set()
-
     for item in action_items:
-
-        key = (
-            item["task"].lower(),
-            item["assignee"].lower(),
-        )
-
-        if key in seen:
-            continue
-
-        seen.add(key)
-        unique_items.append(item)
+        key = (item["task"].lower(), item["assignee"].lower())
+        if key not in seen:
+            seen.add(key)
+            unique_items.append(item)
 
     return unique_items
 
