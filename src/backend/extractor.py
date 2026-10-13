@@ -46,16 +46,13 @@ def _remove_speaker_prefix(line: str) -> str:
 
 
 def _normalize_deadline(deadline: str) -> str:
-    """Clean extracted deadline text."""
+    """Clean extracted deadline text; return an empty string if absent."""
 
     if not deadline:
-        return "TBD"
+        return ""
 
-    deadline = deadline.strip()
-    deadline = re.sub(r"\s+", " ", deadline)
-    deadline = deadline.rstrip(".,;:")
-
-    return deadline
+    deadline = re.sub(r"\s+", " ", deadline.strip())
+    return deadline.rstrip(".,;:")
 
 
 def _normalize_task(task: str) -> str:
@@ -217,10 +214,10 @@ def extract_decisions(transcript_text: str) -> List[str]:
 def extract_action_items(
     transcript_text: str,
 ) -> List[Dict[str, str]]:
-    """Extract actionable commitments from a meeting transcript.
+    """Extract actionable commitments, assignees, and deadlines.
 
-    Each result contains task, assignee, deadline, and status. This uses
-    deterministic regex heuristics; it is not a general-purpose NLP parser.
+    The parser uses deterministic regex heuristics. It supports explicit labels,
+    named commitments, assignment phrases, and common relative/absolute dates.
     """
     action_items: List[Dict[str, str]] = []
 
@@ -230,43 +227,56 @@ def extract_action_items(
         r"oct(?:ober)?|nov(?:ember)?|dec(?:ember)?"
     )
     weekday = r"monday|tuesday|wednesday|thursday|friday|saturday|sunday"
+    date = rf"(?:{month})\s+\d{{1,2}}|\d{{1,2}}\s+(?:{month})"
+    # Keep multiword phrases together so the deadline is not reduced to just
+    # the final weekday/month expression.
     deadline_pattern = (
         rf"(?:today|tomorrow|tonight|eod|end\s+of\s+day|this\s+week|"
         rf"next\s+week|next\s+month|(?:{weekday})(?:\s+(?:morning|afternoon|evening))?|"
-        rf"(?:{month})\s+\d{{1,2}}|\d{{1,2}}\s+(?:{month}))"
+        rf"(?:before|by|due\s+on)\s+(?:next\s+)?(?:{weekday}|{date})|"
+        rf"(?:{date})|within\s+\w+(?:\s+\w+)?)"
     )
 
-    # Allow up to three name components, e.g. "Kamal Kanth".
-    assignee_pattern = r"[A-Za-z][A-Za-z0-9_-]*(?:\s+[A-Za-z][A-Za-z0-9_-]*){0,2}"
-    trailing = r"(?:\s*,?\s*(?:please|thanks))?[\s.,;!]*$"
-    deadline_suffix = rf"(?:\s+(?:by\s+)?(?P<deadline>{deadline_pattern}))?{trailing}"
+    # Assignee names may contain up to three words, e.g. Kamal Kanth.
+    name = r"[A-Za-z][A-Za-z0-9_-]*(?:\s+[A-Za-z][A-Za-z0-9_-]*){0,2}"
+    deadline_suffix = rf"(?:\s+(?:by\s+)?(?P<deadline>{deadline_pattern}))?(?:\s*,?\s*(?:please|thanks))?[\s.,;!]*$"
 
     explicit_pattern = re.compile(
         rf"^\s*(?:action\s+item|todo|task)\s*:\s*"
-        rf"(?:(?P<assignee>{assignee_pattern})\s+)?"
+        rf"(?:(?P<assignee>{name})\s+)?"
         rf"(?:will|should|needs?\s+to|is\s+assigned\s+to|"
         rf"is\s+responsible\s+for|to)\s+"
         rf"(?P<task>.+?){deadline_suffix}",
         re.IGNORECASE,
     )
     commitment_pattern = re.compile(
-        rf"^\s*(?P<assignee>{assignee_pattern})\s+"
-        rf"(?:will|should|needs?\s+to|is\s+assigned\s+to|"
-        rf"is\s+responsible\s+for)\s+"
+        rf"^\s*(?P<assignee>{name})\s+"
+        rf"(?:will|should|needs?\s+to)\s+"
         rf"(?P<task>.+?){deadline_suffix}",
         re.IGNORECASE,
     )
+    responsible_pattern = re.compile(
+        rf"^\s*(?P<assignee>{name})\s+is\s+responsible\s+for\s+"
+        rf"(?P<task>.+?){deadline_suffix}",
+        re.IGNORECASE,
+    )
+    assigned_pattern = re.compile(
+        rf"^\s*(?P<task>.+?)\s+is\s+assigned\s+to\s+"
+        rf"(?P<assignee>{name}){deadline_suffix}",
+        re.IGNORECASE,
+    )
     to_pattern = re.compile(
-        rf"^\s*(?P<assignee>{assignee_pattern})\s+to\s+"
+        rf"^\s*(?P<assignee>{name})\s+to\s+"
         rf"(?P<task>.+?){deadline_suffix}",
         re.IGNORECASE,
     )
 
-    # These are statements, not concrete deliverables.
     non_actionable_tasks = {
-        "be available", "be there", "attend the meeting",
-        "join the meeting", "be present",
+        "be available", "be there", "be present", "attend the meeting",
+        "join the meeting", "be available tomorrow",
     }
+
+    labels = {"action item", "todo", "task", "decision", "summary", "note"}
 
     for line in transcript_text.splitlines():
         clean_line = line.strip()
@@ -278,37 +288,42 @@ def extract_action_items(
             r"^\[\d{1,3}:\d{1,2}:\d{1,2}\]\s*", "", clean_line
         ).strip()
 
-        # Remove a speaker label, but keep extraction labels such as TODO:.
+        # Remove a speaker prefix, while preserving extraction labels.
         speaker_match = re.match(
             r"^(?P<speaker>[A-Za-z][A-Za-z0-9 _-]{0,30})\s*:\s*(?P<message>.*)$",
             clean_line,
         )
-        if speaker_match:
-            label = speaker_match.group("speaker").strip().lower()
-            if label not in {"action item", "todo", "task", "decision", "summary", "note"}:
-                clean_line = speaker_match.group("message").strip()
+        if speaker_match and speaker_match.group("speaker").strip().lower() not in labels:
+            clean_line = speaker_match.group("message").strip()
 
-        # Try explicit labels before unlabelled commitment formats.
-        match = explicit_pattern.match(clean_line)
-        if not match:
-            match = commitment_pattern.match(clean_line)
-        if not match:
-            match = to_pattern.match(clean_line)
+        clean_line = clean_line.rstrip(". ")
+
+        match = None
+        for pattern in (
+            explicit_pattern,
+            responsible_pattern,
+            assigned_pattern,
+            commitment_pattern,
+            to_pattern,
+        ):
+            match = pattern.match(clean_line)
+            if match:
+                break
         if not match:
             continue
 
-        assignee = _normalize_assignee(match.group("assignee"))
-        task = _normalize_task(match.group("task"))
-        deadline = _normalize_deadline(match.group("deadline"))
+        assignee = _normalize_assignee(match.groupdict().get("assignee"))
+        task = _normalize_task(match.groupdict().get("task") or "")
+        deadline = _normalize_deadline(match.groupdict().get("deadline"))
+        deadline = re.sub(r"^(?:due\s+on)\s+", "", deadline, flags=re.IGNORECASE)
 
+        # Remove polite trailing language if the deadline wasn't recognized.
+        task = re.sub(r"\s*,?\s*(?:please|thanks)[.!]*$", "", task, flags=re.IGNORECASE).strip()
         task_lower = task.lower().rstrip(".!?").strip()
-        assignee_lower = assignee.lower()
 
-        # First-person/general availability statements are not assignments.
-        if assignee_lower in {"i", "we", "you", "they", "he", "she"}:
+        if assignee.lower() in {"i", "we", "you", "they", "he", "she"}:
             continue
 
-        # Ignore non-deliverable statements even when a deadline was captured.
         if not task_lower or any(
             task_lower == phrase or task_lower.startswith(phrase + " ")
             for phrase in non_actionable_tasks
