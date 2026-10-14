@@ -22,7 +22,7 @@ from extractor import (
     extract_attendees,
     extract_decisions,
     extract_action_items,
-    generate_executive_summary
+    generate_executive_summary,
 )
 from generator import generate_markdown_minutes, save_markdown_minutes
 
@@ -87,7 +87,7 @@ def test_extract_decisions():
     decisions = extract_decisions(dialogue)
 
     assert len(decisions) >= 2
-    assert any("sqlite" in d.lower() for d in decisions)
+    assert any("sqlite" in decision.lower() for decision in decisions)
 
 
 def test_extract_multiple_decisions():
@@ -106,7 +106,7 @@ def test_extract_multiple_decisions():
 
 
 # ============================================================
-# ACTION ITEM TESTS
+# ACTION ITEM TESTS — US-05
 # ============================================================
 
 def test_extract_action_items():
@@ -120,8 +120,8 @@ def test_extract_action_items():
     assert len(items) >= 2
 
     bob_item = next(
-        (i for i in items if i["assignee"].lower() == "bob"),
-        None
+        (item for item in items if item["assignee"].lower() == "bob"),
+        None,
     )
 
     assert bob_item is not None
@@ -153,7 +153,8 @@ def test_extract_action_item_without_deadline():
     assert len(items) == 1
     assert items[0]["assignee"] == "Bob"
     assert items[0]["task"] == "update the API documentation"
-    assert items[0]["deadline"] == "TBD"
+    # US-06: no deadline should be represented by an empty string.
+    assert items[0]["deadline"] == ""
     assert items[0]["status"] == "Pending"
 
 
@@ -215,8 +216,125 @@ def test_action_items_are_deduplicated():
     assert len(items) == 1
 
 
+def test_extract_action_item_with_multiword_assignee():
+    transcript = """
+    [00:01:00] Alice: Kamal Kanth will update the dashboard by Friday.
+    """
+
+    items = extract_action_items(transcript)
+
+    assert len(items) == 1
+    assert items[0]["assignee"] == "Kamal Kanth"
+    assert items[0]["task"] == "update the dashboard"
+    assert items[0]["deadline"] == "Friday"
+
+
+def test_extract_action_item_with_punctuation_after_deadline():
+    transcript = """
+    [00:01:00] Alice: Bob will update the API by Friday, please.
+    """
+
+    items = extract_action_items(transcript)
+
+    assert len(items) == 1
+    assert items[0]["assignee"] == "Bob"
+    assert items[0]["task"] == "update the API"
+    assert items[0]["deadline"] == "Friday"
+
+
+def test_ordinary_conversation_is_not_an_action_item():
+    transcript = """
+    [00:01:00] Alice: The application looks good.
+    [00:02:00] Bob: I will be available tomorrow.
+    [00:03:00] Charlie: We discussed the dashboard yesterday.
+    """
+
+    items = extract_action_items(transcript)
+
+    assert items == []
+
+
 # ============================================================
-# MARKDOWN GENERATOR TEST
+# US-06: DEADLINE EXTRACTION TESTS — MM-F-007
+# ============================================================
+
+def test_extract_deadline_due_on_date():
+    transcript = """
+    [00:01:00] Alice: Bob will submit the report due on 15 September.
+    """
+
+    items = extract_action_items(transcript)
+
+    assert len(items) == 1
+    assert items[0]["assignee"] == "Bob"
+    assert items[0]["deadline"] == "15 September"
+
+
+def test_extract_deadline_before_next_weekday():
+    transcript = """
+    [00:01:00] Alice: Bob will finish the documentation before next Monday.
+    """
+
+    items = extract_action_items(transcript)
+
+    assert len(items) == 1
+    assert items[0]["assignee"] == "Bob"
+    assert items[0]["deadline"] == "before next Monday"
+
+
+def test_extract_deadline_within_two_weeks():
+    transcript = """
+    [00:01:00] Alice: Bob will complete the integration within two weeks.
+    """
+
+    items = extract_action_items(transcript)
+
+    assert len(items) == 1
+    assert items[0]["assignee"] == "Bob"
+    assert items[0]["deadline"] == "within two weeks"
+
+
+# ============================================================
+# US-06: ASSIGNEE EXTRACTION TESTS — MM-F-008
+# ============================================================
+
+def test_extract_multiword_assignee_responsible_for():
+    transcript = """
+    [00:01:00] Alice: Anagha Kaushik is responsible for preparing the test report.
+    """
+
+    items = extract_action_items(transcript)
+
+    assert len(items) == 1
+    assert items[0]["assignee"] == "Anagha Kaushik"
+    assert "preparing the test report" in items[0]["task"]
+
+
+def test_extract_multiword_assignee_assigned_to():
+    transcript = """
+    [00:01:00] Alice: Action item: Kamal Kanth will update the dashboard.
+    """
+
+    items = extract_action_items(transcript)
+
+    assert len(items) == 1
+    assert items[0]["assignee"] == "Kamal Kanth"
+    assert items[0]["task"] == "update the dashboard"
+
+
+def test_missing_deadline_is_empty():
+    transcript = """
+    [00:01:00] Alice: Bob will update the API.
+    """
+
+    items = extract_action_items(transcript)
+
+    assert len(items) == 1
+    assert items[0]["deadline"] == ""
+
+
+# ============================================================
+# MARKDOWN GENERATOR TESTS
 # ============================================================
 
 def test_generate_markdown_minutes():
@@ -232,10 +350,10 @@ def test_generate_markdown_minutes():
                 "task": "Build UI",
                 "assignee": "Charlie",
                 "deadline": "Monday",
-                "status": "Pending"
+                "status": "Pending",
             }
         ],
-        transcript="Alice: Test"
+        transcript="Alice: Test",
     )
 
     assert "# 📋 Meeting Minutes: Weekly Sprint Sync" in doc
@@ -245,10 +363,11 @@ def test_generate_markdown_minutes():
 
 def test_save_markdown_minutes(tmp_path):
     content = "# Meeting Minutes\n\nTest meeting."
+
     file_path = save_markdown_minutes(
         content,
         "test_meeting",
-        str(tmp_path)
+        str(tmp_path),
     )
 
     assert file_path.endswith("test_meeting.md")
@@ -257,4 +376,3 @@ def test_save_markdown_minutes(tmp_path):
         saved_content = file.read()
 
     assert saved_content == content
-

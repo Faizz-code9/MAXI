@@ -113,3 +113,7 @@ All pull requests and commits to `main` are automatically verified by **GitHub A
 * Full `pytest` execution across unit and integration test suites
 * Architectural import verification
 * Strict merge policy: PRs must pass CI before repo owner merge.
+
+### CI/CD Practice
+
+This change verifies the team's branch and pull request workflow.

@@ -15,8 +15,7 @@ import re
 from typing import List
 
 
-# Filler words that can safely be removed when they are used
-# as conversational fillers.
+# Common conversational fillers.
 FILLER_PATTERNS = [
     r"\bum+\b",
     r"\buh+\b",
@@ -30,12 +29,15 @@ FILLER_PATTERNS = [
 
 def remove_filler_words(text: str) -> str:
     """
-    Remove common conversational filler words.
+    Remove common conversational filler words while preserving
+    meaningful uses of words such as 'like'.
 
-    The word 'like' is handled separately so that meaningful
-    sentences such as 'I like the design' are preserved.
+    Examples:
+        "Um, hello everyone." -> "hello everyone."
+        "I, like, think we should proceed."
+            -> "I think we should proceed."
+        "I like the design." -> "I like the design."
     """
-
     cleaned = text
 
     for pattern in FILLER_PATTERNS:
@@ -46,39 +48,40 @@ def remove_filler_words(text: str) -> str:
             flags=re.IGNORECASE,
         )
 
-    # Remove 'like' only when it is clearly being used
-    # as a conversational filler.
-    #
-    # Examples removed:
-    #   "I, like, think we should..."
-    #   "It was, like, really good."
-    #
-    # Examples preserved:
-    #   "I like the design."
-    #   "We like this approach."
+    # Remove "like" when enclosed by commas as a conversational filler.
     cleaned = re.sub(
         r",\s*like\s*,",
-        ",",
+        "",
         cleaned,
         flags=re.IGNORECASE,
     )
 
+    # Remove "like" before common intensifiers when used as a filler.
     cleaned = re.sub(
-        r"\b(like)\s+(really|very|basically|just)\b",
-        r"\2",
+        r"\blike\s+(really|very|basically|just)\b",
+        r"\1",
         cleaned,
         flags=re.IGNORECASE,
+    )
+
+    # Remove a comma left at the beginning of a sentence or
+    # immediately after a speaker label when a filler is removed.
+    cleaned = re.sub(
+        r"(^|:\s*),\s*",
+        r"\1",
+        cleaned,
     )
 
     # Remove spaces before punctuation.
     cleaned = re.sub(r"\s+([,.;!?])", r"\1", cleaned)
 
-    # Collapse repeated spaces.
+    # Collapse repeated spaces and tabs.
     cleaned = re.sub(r"[ \t]+", " ", cleaned)
 
-    # Remove duplicated commas created by filler removal.
+    # Remove duplicate commas caused by filler removal.
     cleaned = re.sub(r",\s*,+", ",", cleaned)
 
+    # Avoid stray punctuation at the beginning or end.
     return cleaned.strip(" ,")
 
 
@@ -86,13 +89,14 @@ def normalize_timestamp(timestamp: str) -> str:
     """
     Normalize timestamps into [HH:MM:SS] format.
 
-    Examples:
-        [0:1:5]     -> [00:01:05]
-        [00:1:5]    -> [00:01:05]
-        [1:05:10]   -> [01:05:10]
-        [00:01:05]  -> [00:01:05]
-    """
+    Supported inputs:
+        0:1:5    -> [00:01:05]
+        00:1:5   -> [00:01:05]
+        1:05:10  -> [01:05:10]
+        1:05     -> [00:01:05]
 
+    Invalid formats are returned unchanged.
+    """
     parts = timestamp.split(":")
 
     try:
@@ -106,6 +110,12 @@ def normalize_timestamp(timestamp: str) -> str:
         else:
             return timestamp
 
+        if hours < 0 or minutes < 0 or seconds < 0:
+            return timestamp
+
+        if minutes > 59 or seconds > 59:
+            return timestamp
+
         return f"[{hours:02d}:{minutes:02d}:{seconds:02d}]"
 
     except ValueError:
@@ -113,26 +123,27 @@ def normalize_timestamp(timestamp: str) -> str:
 
 
 def normalize_timestamps(text: str) -> str:
-    """Normalize all timestamps in a transcript."""
-
+    """Normalize supported timestamps enclosed in square brackets."""
     return re.sub(
-        r"\[(\d{1,3}:\d{1,2}:\d{1,2})\]",
-        lambda match: normalize_timestamp(match.group(0)[1:-1]),
+        r"\[(\d{1,3}:\d{1,2}:\d{1,2}|\d{1,2}:\d{1,2})\]",
+        lambda match: normalize_timestamp(match.group(1)),
         text,
     )
 
 
 def normalize_speaker_turn(line: str) -> str:
     """
-    Standardize speaker labels.
+    Standardize speaker labels and spacing.
 
     Examples:
         'alice : Hello' -> 'Alice: Hello'
         'BOB: Hi'       -> 'Bob: Hi'
         'Alice   : Hi'  -> 'Alice: Hi'
     """
-
-    pattern = r"^(\s*(?:\[\d{2}:\d{2}:\d{2}\]\s*)?)([A-Za-z][A-Za-z0-9 _-]{0,30})\s*:\s*(.*)$"
+    pattern = (
+        r"^(\s*(?:\[\d{2,3}:\d{2}:\d{2}\]\s*)?)"
+        r"([A-Za-z][A-Za-z0-9 _-]{0,30})\s*:\s*(.*)$"
+    )
 
     match = re.match(pattern, line)
 
@@ -143,35 +154,34 @@ def normalize_speaker_turn(line: str) -> str:
     speaker = match.group(2).strip()
     message = match.group(3).strip()
 
-    # Normalize speaker capitalization without destroying
-    # already correctly formatted names/acronyms.
+    # Normalize all-lowercase or all-uppercase labels.
+    # Preserve mixed-case labels such as "McDonald".
     if speaker.islower() or speaker.isupper():
         speaker = speaker.title()
+
+    # Normalize whitespace inside speaker labels.
+    speaker = re.sub(r"\s+", " ", speaker)
 
     return f"{prefix}{speaker}: {message}"
 
 
 def normalize_lines(text: str) -> List[str]:
-    """
-    Split transcript into cleaned, non-empty dialogue lines.
-    """
-
+    """Split transcript text into cleaned, non-empty dialogue lines."""
     lines = []
 
     for line in text.splitlines():
-
         line = line.strip()
 
         if not line:
             continue
 
-        # Normalize timestamp before speaker processing.
+        # Normalize timestamps before processing speaker labels.
         line = normalize_timestamps(line)
 
-        # Remove filler words.
+        # Remove conversational filler words.
         line = remove_filler_words(line)
 
-        # Normalize speaker formatting.
+        # Standardize speaker labels and surrounding whitespace.
         line = normalize_speaker_turn(line)
 
         if line:
@@ -182,22 +192,16 @@ def normalize_lines(text: str) -> List[str]:
 
 def clean_transcript(raw_text: str) -> str:
     """
-    Perform complete transcript normalization.
+    Normalize transcript text before information extraction.
 
-    Pipeline:
-        Raw transcript
-            ↓
-        Remove filler words
-            ↓
-        Normalize timestamps
-            ↓
-        Normalize speaker labels
-            ↓
-        Normalize whitespace
-            ↓
-        Clean transcript
+    Processing steps:
+        1. Split the transcript into lines.
+        2. Remove blank lines and unnecessary whitespace.
+        3. Normalize timestamps.
+        4. Remove conversational filler words.
+        5. Standardize speaker labels.
+        6. Join the cleaned lines.
     """
-
     if not raw_text:
         return ""
 
