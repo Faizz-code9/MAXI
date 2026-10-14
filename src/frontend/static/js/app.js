@@ -249,7 +249,10 @@ const formData = new FormData();
     }
 
     // Transcript
-    viewTranscript.textContent = data.raw_transcript || data.processed_transcript || "";
+    const transcript = data.raw_transcript || data.processed_transcript || "";
+viewTranscript.textContent = transcript.trim()
+  ? transcript
+  : "No transcript is available for this meeting.";
   }
 // ================= TOGGLE ACTION ITEM STATUS =================
 viewActionItems.addEventListener("click", async (e) => {
@@ -281,6 +284,7 @@ viewActionItems.addEventListener("click", async (e) => {
   if (btnExportPdf) {
     btnExportPdf.addEventListener("click", () => {
       if (!currentMeetingId) return;
+      console.log("Export PDF clicked. Meeting ID:", currentMeetingId);
       window.open(`/api/minutes/${currentMeetingId}/pdf?autoprint=true`, "_blank");
     });
   }
@@ -339,11 +343,26 @@ viewActionItems.addEventListener("click", async (e) => {
   };
 
   // Search filter
-  historySearch.addEventListener("input", (e) => {
-    const term = e.target.value.toLowerCase();
-    const rows = historyList.querySelectorAll("tr");
-    rows.forEach(r => {
-      r.style.display = r.textContent.toLowerCase().includes(term) ? "" : "none";
-    });
+  
+historySearch.addEventListener("input", (e) => {
+  const term = e.target.value.toLowerCase();
+  const rows = historyList.querySelectorAll("tr");
+  let visibleCount = 0;
+
+  rows.forEach((row) => {
+    const matches = row.textContent.toLowerCase().includes(term);
+    row.style.display = matches ? "" : "none";
+
+    if (matches) {
+      visibleCount++;
+    }
   });
+
+  const noResultsMessage = document.getElementById("history-no-results");
+
+  if (noResultsMessage) {
+    noResultsMessage.classList.toggle("hidden", visibleCount > 0);
+  }
+});
+
 });
