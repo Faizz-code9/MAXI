@@ -115,3 +115,52 @@ def test_update_action_item_status():
     conn.close()
 
     assert status == "Completed"
+
+
+def test_export_pdf_endpoint(client):
+    """Verifies that PDF export endpoints return valid printable document."""
+    meeting_id = create_meeting("PDF Export Test", "2026-10-06")
+    
+    # Test SAD 4.3 route
+    resp1 = client.get(f"/api/minutes/{meeting_id}/pdf")
+    assert resp1.status_code == 200
+    assert b"Meeting Minutes" in resp1.data
+
+    # Test alias route
+    resp2 = client.get(f"/api/meetings/{meeting_id}/export/pdf")
+    assert resp2.status_code == 200
+    assert b"Meeting Minutes" in resp2.data
+
+    # Test format query param
+    resp3 = client.get(f"/api/meetings/{meeting_id}/export?format=pdf")
+    assert resp3.status_code == 200
+    assert b"Meeting Minutes" in resp3.data
+
+
+def test_health_check_endpoint(client):
+    """Verifies GET /api/health endpoint for US-10 (#14) and US-02 (#6)."""
+    resp = client.get("/api/health")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["success"] is True
+    assert data["status"] == "healthy"
+    assert "mp3" in data["supported_formats"]
+    assert data["max_upload_mb"] == 100
+
+
+def test_filename_sanitization_security(client):
+    """Verifies path traversal and XSS sanitization on upload for US-17 (#21)."""
+    fake_audio_bytes = b"ID3\x03\x00\x00\x00\x00\x00#TSSE"
+    data = {
+        "audio": (io.BytesIO(fake_audio_bytes), "../../evil_path/audio.mp3"),
+        "title": "<script>alert(1)</script>Security Review",
+        "date": "2026-10-10"
+    }
+    resp = client.post("/api/upload", data=data, content_type="multipart/form-data")
+    assert resp.status_code == 201
+    json_data = resp.get_json()
+    assert json_data["success"] is True
+    assert "<script>" not in json_data["title"]
+    assert "&lt;script&gt;" in json_data["title"]
+    assert resp.headers.get("X-Content-Type-Options") == "nosniff"
+

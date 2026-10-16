@@ -13,8 +13,19 @@ Exposes REST API endpoints defined in SAD Section 4.3:
 """
 
 import os
+import html
+import logging
 from datetime import datetime
 from flask import Flask, request, jsonify, render_template, send_file, Response
+from werkzeug.utils import secure_filename
+
+# Configure Audit Logger (US-17 / MM-SR-006)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+audit_logger = logging.getLogger("minimax.audit")
+
 try:
     from flask_cors import CORS
     HAS_CORS = True
@@ -27,6 +38,7 @@ from models import (
     get_meeting,
     list_meetings,
     add_action_items,
+    update_action_item_status,
     update_meeting_processed,
     get_db_connection
 )
@@ -64,10 +76,32 @@ def add_cors_headers(response):
     response.headers["Access-Control-Allow-Origin"] = "*"
     response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
     response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,DELETE,OPTIONS"
+    response.headers["X-Content-Type-Options"] = "nosniff"
     return response
 
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024  # 100 MB
+
+
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    """Handles files exceeding the 100 MB limit (US-02 / MM-F-003)."""
+    audit_logger.warning("Rejected upload: payload exceeded 100 MB limit.")
+    return jsonify({
+        "success": False,
+        "error": "File exceeds maximum allowed limit of 100 MB."
+    }), 413
+
+
+@app.route("/api/health", methods=["GET"])
+def health_check():
+    """Health check endpoint verifying API & supported formats (US-10)."""
+    return jsonify({
+        "success": True,
+        "status": "healthy",
+        "supported_formats": ["mp3", "wav", "m4a"],
+        "max_upload_mb": 100
+    }), 200
 
 
 @app.route("/")
@@ -83,31 +117,38 @@ def upload_audio():
     Upload -> Transcribe -> Clean -> Extract -> Save -> Generate
     """
     if "audio" not in request.files:
+        audit_logger.warning("Upload rejected: no audio file part in request.")
         return jsonify({"success": False, "error": "No audio file provided."}), 400
 
     file = request.files["audio"]
     if file.filename == "":
+        audit_logger.warning("Upload rejected: empty filename.")
         return jsonify({"success": False, "error": "No file selected."}), 400
 
     if not allowed_file(file.filename):
+        audit_logger.warning("Upload rejected: unsupported extension '%s'.", file.filename)
         return jsonify({
             "success": False,
             "error": "Invalid format. Only .mp3, .wav, and .m4a are accepted."
         }), 400
 
-    title = request.form.get("title", "").strip() or f"Meeting on {datetime.now().strftime('%Y-%m-%d')}"
-    meeting_date = request.form.get("date", "").strip() or datetime.now().strftime("%Y-%m-%d")
+    raw_title = request.form.get("title", "").strip() or f"Meeting on {datetime.now().strftime('%Y-%m-%d')}"
+    title = html.escape(raw_title)
+    meeting_date = html.escape(request.form.get("date", "").strip() or datetime.now().strftime("%Y-%m-%d"))
 
-    # Save audio file to uploads/
-    saved_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
+    # Sanitize filename against path traversal (US-17 / MM-SR-004)
+    safe_base = secure_filename(file.filename) or "recording.mp3"
+    saved_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{safe_base}"
     file_path = os.path.join(app.config["UPLOAD_FOLDER"], saved_filename)
     file.save(file_path)
+    audit_logger.info("Saved sanitized audio upload '%s' for meeting '%s'.", saved_filename, title)
 
     try:
         # Step 1: Transcribe audio
         transcription_result = transcribe_audio(file_path)
         raw_text = transcription_result["raw_transcript"]
         duration = transcription_result["duration"]
+        processing_time_ms = transcription_result.get("processing_time_ms", 0.0)
 
         # Step 2: Clean and normalize text
         cleaned_text = clean_transcript(raw_text)
@@ -146,6 +187,7 @@ def upload_audio():
             "title": title,
             "date": meeting_date,
             "duration": duration,
+            "processing_time_ms": processing_time_ms,
             "attendees": attendees,
             "summary": summary,
             "decisions": decisions,
@@ -223,6 +265,10 @@ def export_meeting(meeting_id):
             transcript=transcript
         )
 
+        # Check if PDF format is requested
+        if request.args.get("format", "").lower() == "pdf":
+            return export_meeting_pdf(meeting_id)
+
         filename = f"Minutes_{meeting_id}_{datetime.now().strftime('%Y%m%d')}.md"
         return Response(
             markdown_doc,
@@ -233,19 +279,137 @@ def export_meeting(meeting_id):
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route("/api/minutes/<int:meeting_id>/pdf", methods=["GET"])
+@app.route("/api/meetings/<int:meeting_id>/pdf", methods=["GET"])
+@app.route("/api/meetings/<int:meeting_id>/export/pdf", methods=["GET"])
+def export_meeting_pdf(meeting_id):
+    """
+    Exports structured meeting minutes formatted for PDF printing/downloading.
+    Provides styled print layout adhering to SAD Section 4.3 (/api/minutes/{id}/pdf).
+    """
+    try:
+        meeting = get_meeting(meeting_id)
+        if not meeting:
+            return jsonify({"success": False, "error": "Meeting not found."}), 404
+
+        transcript = meeting.get("processed_transcript") or meeting.get("raw_transcript") or ""
+        attendees = extract_attendees(transcript)
+        decisions = extract_decisions(transcript)
+        action_items = meeting.get("action_items", [])
+
+        decisions_html = "".join(f"<li>{d}</li>" for d in decisions) if decisions else "<li>No formal decisions recorded.</li>"
+        action_rows = "".join(
+            f"<tr><td>{i}</td><td>{item.get('task','')}</td><td><strong>{item.get('assignee','Unassigned')}</strong></td><td><code>{item.get('deadline','TBD')}</code></td><td>{item.get('status','Pending')}</td></tr>"
+            for i, item in enumerate(action_items, 1)
+        ) if action_items else '<tr><td colspan="5" style="text-align:center;">No action items recorded.</td></tr>'
+
+        html_doc = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Meeting Minutes - {meeting['title']}</title>
+  <style>
+    body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; color: #0f172a; line-height: 1.6; max-width: 850px; margin: auto; }}
+    h1 {{ color: #4338ca; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 12px; }}
+    h2 {{ color: #1e1b4b; margin-top: 24px; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; }}
+    .meta-box {{ background: #f8fafc; border-left: 4px solid #4338ca; padding: 12px 16px; border-radius: 4px; margin: 16px 0; }}
+    .meta-box p {{ margin: 4px 0; }}
+    table {{ width: 100%; border-collapse: collapse; margin-top: 12px; }}
+    th, td {{ border: 1px solid #cbd5e1; padding: 8px 12px; text-align: left; font-size: 14px; }}
+    th {{ background: #f1f5f9; font-weight: 600; text-transform: uppercase; font-size: 12px; }}
+    ul {{ padding-left: 20px; }}
+    li {{ margin-bottom: 6px; }}
+    .summary-text {{ background: #f8fafc; padding: 12px 16px; border-radius: 6px; border: 1px solid #e2e8f0; }}
+    @media print {{
+      body {{ padding: 0; }}
+      @page {{ margin: 1.5cm; }}
+    }}
+  </style>
+  <script>
+    window.onload = function() {{
+      if (window.location.search.includes('print=true') || window.location.search.includes('autoprint=true')) {{
+        window.print();
+      }}
+    }};
+  </script>
+</head>
+<body>
+  <h1>📋 Meeting Minutes: {meeting['title']}</h1>
+  <div class="meta-box">
+    <p><strong>Date:</strong> {meeting['date']} &nbsp;|&nbsp; <strong>Duration:</strong> {meeting.get('duration', '00:02:25')} &nbsp;|&nbsp; <strong>Status:</strong> Approved</p>
+    <p><strong>Attendees:</strong> {', '.join(attendees) if attendees else 'General Project Team'}</p>
+  </div>
+
+  <h2>📝 Executive Summary</h2>
+  <div class="summary-text">{meeting.get('summary', 'No summary recorded.')}</div>
+
+  <h2>⚖️ Key Decisions</h2>
+  <ul>{decisions_html}</ul>
+
+  <h2>✅ Action Items</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Task Description</th>
+        <th>Assignee</th>
+        <th>Deadline</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>{action_rows}</tbody>
+  </table>
+</body>
+</html>"""
+
+        return Response(html_doc, mimetype="text/html")
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route("/api/action-items/<int:item_id>", methods=["PUT"])
 def update_action_item(item_id):
-    """Toggles action item status (Pending <-> Completed)."""
-    data = request.get_json() or {}
-    new_status = data.get("status", "Completed")
+    """Updates an action item's status to Pending or Completed."""
+    data = request.get_json(silent=True)
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("UPDATE action_items SET status = ? WHERE id = ?", (new_status, item_id))
-    conn.commit()
-    conn.close()
+    if not isinstance(data, dict):
+        return jsonify({
+            "success": False,
+            "error": "A JSON request body is required."
+        }), 400
 
-    return jsonify({"success": True, "status": new_status}), 200
+    new_status = data.get("status")
+
+    if not isinstance(new_status, str) or new_status not in {
+        "Pending",
+        "Completed"
+    }:
+        return jsonify({
+            "success": False,
+            "error": "Status must be Pending or Completed."
+        }), 400
+
+    try:
+        updated = update_action_item_status(item_id, new_status)
+    except Exception:
+        audit_logger.exception(
+            "Failed to update action item %s", item_id
+        )
+        return jsonify({
+            "success": False,
+            "error": "Failed to update action item."
+        }), 500
+
+    if not updated:
+        return jsonify({
+            "success": False,
+            "error": "Action item not found."
+        }), 404
+
+    return jsonify({
+        "success": True,
+        "status": new_status
+    }), 200
 
 
 if __name__ == "__main__":
