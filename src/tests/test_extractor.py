@@ -358,7 +358,13 @@ def test_generate_markdown_minutes():
 
     assert "# 📋 Meeting Minutes: Weekly Sprint Sync" in doc
     assert "Alice, Bob" in doc
+    assert "Brief summary of meeting." in doc
+    assert "Use SQLite" in doc
+    assert "Build UI" in doc
     assert "Charlie" in doc
+    assert "Monday" in doc
+    assert "Pending" in doc
+    assert "Alice: Test" in doc
 
 
 def test_save_markdown_minutes(tmp_path):
