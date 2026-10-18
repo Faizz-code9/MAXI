@@ -42,9 +42,11 @@ document.addEventListener("DOMContentLoaded", () => {
   // History elements
   const historyList = document.getElementById("history-list");
   const historySearch = document.getElementById("history-search");
+  const historyNoResults = document.getElementById("history-no-results");
 
   let currentMeetingId = null;
   let currentMarkdownContent = "";
+  let meetings = [];
 
   // Set today's date as default
   meetingDateInput.value = new Date().toISOString().split("T")[0];
@@ -226,26 +228,42 @@ const formData = new FormData();
     }
 
     // Action Items
-    viewActionItems.innerHTML = "";
+    viewActionItems.replaceChildren();
     if (data.action_items && data.action_items.length) {
       data.action_items.forEach((item, idx) => {
         const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${idx + 1}</td>
-          <td>${item.task}</td>
-          <td><strong>${item.assignee}</strong></td>
-          <td><code>${item.deadline}</code></td>
-          <td>
-            <button class="status-tag ${item.status === 'Completed' ? 'status-completed' : 'status-pending'}" 
-                    data-id="${item.id || ''}" data-status="${item.status}">
-              ${item.status}
-            </button>
-          </td>
-        `;
+        const numberCell = document.createElement("td");
+        numberCell.textContent = String(idx + 1);
+        const taskCell = document.createElement("td");
+        taskCell.textContent = item.task || "";
+        const assigneeCell = document.createElement("td");
+        const assignee = document.createElement("strong");
+        assignee.textContent = item.assignee || "Unassigned";
+        assigneeCell.appendChild(assignee);
+        const deadlineCell = document.createElement("td");
+        const deadline = document.createElement("code");
+        deadline.textContent = item.deadline || "TBD";
+        deadlineCell.appendChild(deadline);
+        const statusCell = document.createElement("td");
+        const status = item.status === "Completed" ? "Completed" : "Pending";
+        const statusButton = document.createElement("button");
+        statusButton.type = "button";
+        statusButton.className = `status-tag ${status === "Completed" ? "status-completed" : "status-pending"}`;
+        statusButton.dataset.id = item.id || "";
+        statusButton.dataset.status = status;
+        statusButton.textContent = status;
+        statusCell.appendChild(statusButton);
+        tr.append(numberCell, taskCell, assigneeCell, deadlineCell, statusCell);
         viewActionItems.appendChild(tr);
       });
     } else {
-      viewActionItems.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#94A3B8;">No action items detected.</td></tr>`;
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+      cell.colSpan = 5;
+      cell.className = "empty-state-cell";
+      cell.textContent = "No action items detected.";
+      row.appendChild(cell);
+      viewActionItems.appendChild(row);
     }
 
     // Transcript
@@ -298,71 +316,106 @@ viewActionItems.addEventListener("click", async (e) => {
 
   // ================= MEETING HISTORY =================
   async function loadMeetingHistory() {
+    historyNoResults.classList.add("hidden");
+    showHistoryMessage("Loading meeting history…");
     try {
       const res = await fetch("/api/meetings");
-      const data = await res.json();
-      if (!data.success) return;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success || !Array.isArray(data.meetings)) {
+        throw new Error(data.error || "Could not load meeting history.");
+      }
 
-      historyList.innerHTML = "";
-      if (!data.meetings.length) {
-        historyList.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#94A3B8;">No past meetings recorded yet.</td></tr>`;
+      meetings = data.meetings.slice().sort((a, b) =>
+        String(b.date || "").localeCompare(String(a.date || "")) || Number(b.id) - Number(a.id)
+      );
+      if (!meetings.length) {
+        showHistoryMessage("No past meetings recorded yet.");
         return;
       }
 
-      data.meetings.forEach(m => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>#${m.id}</td>
-          <td><strong>${m.title}</strong></td>
-          <td>${m.date}</td>
-          <td>${m.duration}</td>
-          <td><span class="status-tag status-completed">${m.status}</span></td>
-          <td>
-            <button class="btn btn-secondary btn-sm" onclick="viewHistoricalMeeting(${m.id})">View</button>
-            <button class="btn btn-secondary btn-sm" onclick="window.location.href='/api/meetings/${m.id}/export'">Download</button>
-          </td>
-        `;
-        historyList.appendChild(tr);
-      });
+      renderMeetingHistory();
     } catch (err) {
-      console.error("Failed to load meetings:", err);
+      meetings = [];
+      showHistoryMessage(err.message || "Could not load meeting history.", true);
     }
+  }
+
+  function showHistoryMessage(message, retry = false) {
+    historyList.replaceChildren();
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 6;
+    cell.className = "empty-state-cell";
+    cell.setAttribute("role", "status");
+    cell.textContent = message;
+    if (retry) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "btn btn-secondary btn-sm history-retry";
+      button.textContent = "Retry";
+      button.addEventListener("click", loadMeetingHistory);
+      cell.append(" ", button);
+    }
+    row.appendChild(cell);
+    historyList.appendChild(row);
+  }
+
+  function renderMeetingHistory() {
+    historyList.replaceChildren();
+    const term = historySearch.value.trim().toLocaleLowerCase();
+    const filteredMeetings = meetings.filter((meeting) =>
+      `${meeting.title || ""} ${meeting.date || ""}`.toLocaleLowerCase().includes(term)
+    );
+    historyNoResults.classList.toggle("hidden", filteredMeetings.length > 0);
+
+    filteredMeetings.forEach((m) => {
+      const tr = document.createElement("tr");
+      const idCell = document.createElement("td");
+      idCell.textContent = `#${m.id}`;
+      const titleCell = document.createElement("td");
+      const title = document.createElement("strong");
+      title.textContent = m.title || "Untitled meeting";
+      titleCell.appendChild(title);
+      const dateCell = document.createElement("td");
+      dateCell.textContent = m.date || "—";
+      const durationCell = document.createElement("td");
+      durationCell.textContent = m.duration || "—";
+      const statusCell = document.createElement("td");
+      const status = document.createElement("span");
+      status.className = "status-tag status-completed";
+      status.textContent = m.status || "Processed";
+      statusCell.appendChild(status);
+      const actionCell = document.createElement("td");
+      const viewButton = document.createElement("button");
+      viewButton.type = "button";
+      viewButton.className = "btn btn-secondary btn-sm";
+      viewButton.textContent = "View";
+      viewButton.addEventListener("click", () => window.viewHistoricalMeeting(m.id));
+      const exportLink = document.createElement("a");
+      exportLink.className = "btn btn-secondary btn-sm";
+      exportLink.href = `/api/meetings/${encodeURIComponent(m.id)}/export`;
+      exportLink.textContent = "Download";
+      actionCell.append(viewButton, exportLink);
+      tr.append(idCell, titleCell, dateCell, durationCell, statusCell, actionCell);
+      historyList.appendChild(tr);
+    });
   }
 
   window.viewHistoricalMeeting = async (id) => {
     try {
-      const res = await fetch(`/api/meetings/${id}`);
-      const data = await res.json();
-      if (data.success && data.meeting) {
-        displayMinutes(data.meeting);
-        switchTab("viewer-tab");
+      const res = await fetch(`/api/meetings/${encodeURIComponent(id)}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success || !data.meeting) {
+        throw new Error(data.error || "Could not load this meeting.");
       }
+      displayMinutes(data.meeting);
+      switchTab("viewer-tab");
     } catch (err) {
       alert("Error loading meeting: " + err.message);
     }
   };
 
-  // Search filter
-  
-historySearch.addEventListener("input", (e) => {
-  const term = e.target.value.toLowerCase();
-  const rows = historyList.querySelectorAll("tr");
-  let visibleCount = 0;
-
-  rows.forEach((row) => {
-    const matches = row.textContent.toLowerCase().includes(term);
-    row.style.display = matches ? "" : "none";
-
-    if (matches) {
-      visibleCount++;
-    }
-  });
-
-  const noResultsMessage = document.getElementById("history-no-results");
-
-  if (noResultsMessage) {
-    noResultsMessage.classList.toggle("hidden", visibleCount > 0);
-  }
-});
+  // Search by meeting title or date, including when history loads after typing.
+  historySearch.addEventListener("input", renderMeetingHistory);
 
 });
