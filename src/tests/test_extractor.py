@@ -1,3 +1,4 @@
+
 """
 Unit Tests for Text Preprocessor & Extractor Modules
 ===================================================
@@ -75,7 +76,7 @@ def test_extract_attendees_normalizes_names():
 
 
 # ============================================================
-# DECISION TESTS
+# DECISION TESTS — US-07
 # ============================================================
 
 def test_extract_decisions():
@@ -103,6 +104,52 @@ def test_extract_multiple_decisions():
     assert any("Flask" in decision for decision in decisions)
     assert any("SQLite" in decision for decision in decisions)
     assert any("REST APIs" in decision for decision in decisions)
+
+
+def test_extract_decisions_from_explicit_consensus_phrases():
+    """US-07: Recognize explicit statements of agreement and decisions."""
+    transcript = """
+    Alice: We decided to use PostgreSQL.
+    Bob: Agreed to deploy on the local server.
+    Kamal: Consensus is to use REST APIs.
+    Anagha: The team decided to adopt automated testing.
+    """
+
+    decisions = extract_decisions(transcript)
+
+    assert len(decisions) == 4
+    assert any("PostgreSQL" in decision for decision in decisions)
+    assert any("local server" in decision for decision in decisions)
+    assert any("REST APIs" in decision for decision in decisions)
+    assert any("automated testing" in decision for decision in decisions)
+
+
+def test_general_discussion_is_not_extracted_as_a_decision():
+    """US-07: Discussion and suggestions alone must not count as decisions."""
+    transcript = """
+    Alice: We discussed PostgreSQL and SQLite.
+    Bob: I think REST APIs might be a good option.
+    Kamal: We should consider automated testing.
+    Anagha: The team discussed several deployment approaches.
+    """
+
+    decisions = extract_decisions(transcript)
+
+    assert decisions == []
+
+
+def test_duplicate_decisions_are_removed():
+    """US-07: Repeated identical decisions should appear only once."""
+    transcript = """
+    Alice: Decision: Use PostgreSQL.
+    Bob: Decision: Use PostgreSQL.
+    Kamal: Decision: Use PostgreSQL.
+    """
+
+    decisions = extract_decisions(transcript)
+
+    assert len(decisions) == 1
+    assert "PostgreSQL" in decisions[0]
 
 
 # ============================================================
