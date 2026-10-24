@@ -7,10 +7,18 @@ on:
     branches: [ main, develop ]
   workflow_dispatch:
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Run Unit & Integration Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout Code
@@ -29,8 +37,31 @@ jobs:
 
       - name: Run Test Suite with Pytest
         run: |
-          pytest src/tests/ -v --tb=short
+          pytest src/tests/ -v --tb=short --junitxml=test-results.xml
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-results
+          path: test-results.xml
+          if-no-files-found: warn
 
       - name: Verify Core Modules Integrity
         run: |
           python -c "import sys; sys.path.insert(0, 'src/backend'); import app, models, transcriber, preprocessor, extractor, generator; print('All core modules imported successfully.')"
+
+      - name: Smoke Test - Server Starts and Responds (MM-NF-005)
+        run: |
+          python src/backend/app.py > server.log 2>&1 &
+          SERVER_PID=$!
+          trap "kill $SERVER_PID 2>/dev/null || true" EXIT
+          curl --fail --silent --show-error \
+               --retry 10 --retry-delay 1 --retry-connrefused \
+               http://127.0.0.1:5000/api/health
+          echo
+          echo "Server responded to health check."
+
+      - name: Print Server Log on Failure
+        if: failure()
+        run: cat server.log || true
