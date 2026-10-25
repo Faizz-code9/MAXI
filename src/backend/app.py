@@ -20,9 +20,13 @@ from flask import Flask, request, jsonify, render_template, send_file, Response
 from werkzeug.utils import secure_filename
 
 # Configure Audit Logger (US-17 / MM-SR-006)
+LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+LOG_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S%z"
+
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    format=LOG_FORMAT,
+    datefmt=LOG_DATE_FORMAT
 )
 audit_logger = logging.getLogger("minimax.audit")
 
@@ -180,6 +184,7 @@ def upload_audio():
             action_items=action_items,
             transcript=cleaned_text
         )
+        audit_logger.info("Pipeline completed for meeting %s.", meeting_id)
 
         return jsonify({
             "success": True,
@@ -196,8 +201,8 @@ def upload_audio():
         }), 201
 
     except Exception as e:
+        audit_logger.exception("Pipeline failed for upload '%s'.", saved_filename)
         return jsonify({"success": False, "error": str(e)}), 500
-
 
 @app.route("/api/meetings", methods=["GET"])
 def get_meetings():
