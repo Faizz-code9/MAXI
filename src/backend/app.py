@@ -14,6 +14,7 @@ Exposes REST API endpoints defined in SAD Section 4.3:
 
 import os
 import html
+import uuid
 import logging
 from datetime import datetime
 from flask import Flask, request, jsonify, render_template, send_file, Response
@@ -146,7 +147,11 @@ def upload_audio():
 
     # Sanitize filename against path traversal (US-17 / MM-SR-004)
     safe_base = secure_filename(file.filename) or "recording.mp3"
-    saved_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{safe_base}"
+    # Timestamp + short unique id so simultaneous uploads of the same filename
+    # can never overwrite each other (MM-NF-003 / SAD UUID-based naming).
+    saved_filename = (
+        f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}_{safe_base}"
+    )
     file_path = os.path.join(app.config["UPLOAD_FOLDER"], saved_filename)
     file.save(file_path)
     audit_logger.info("Saved sanitized audio upload '%s' for meeting '%s'.", saved_filename, title)
