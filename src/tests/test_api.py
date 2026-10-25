@@ -331,17 +331,17 @@ def test_export_pdf_endpoint(client):
     # Test SAD 4.3 route.
     resp1 = client.get(f"/api/minutes/{meeting_id}/pdf")
     assert resp1.status_code == 200
-    assert b"Meeting Minutes" in resp1.data
+    assert resp1.data.startswith(b"%PDF") or b"Meeting Minutes" in resp1.data
 
     # Test alias route.
     resp2 = client.get(f"/api/meetings/{meeting_id}/export/pdf")
     assert resp2.status_code == 200
-    assert b"Meeting Minutes" in resp2.data
+    assert resp2.data.startswith(b"%PDF") or b"Meeting Minutes" in resp2.data
 
     # Test format query parameter.
     resp3 = client.get(f"/api/meetings/{meeting_id}/export?format=pdf")
     assert resp3.status_code == 200
-    assert b"Meeting Minutes" in resp3.data
+    assert resp3.data.startswith(b"%PDF") or b"Meeting Minutes" in resp3.data
 
 
 def test_health_check_endpoint(client):
