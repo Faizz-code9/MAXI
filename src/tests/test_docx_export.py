@@ -9,8 +9,9 @@ the file for download across all expected routes and query params.
 import io
 import os
 import sys
-import docx
 import pytest
+
+docx = pytest.importorskip("docx", reason="python-docx package is required for DOCX export tests")
 
 sys.path.insert(
     0,
