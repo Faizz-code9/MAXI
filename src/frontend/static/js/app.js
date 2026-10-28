@@ -37,6 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const viewTranscript = document.getElementById("view-transcript");
   const btnExportMd = document.getElementById("btn-export-md");
   const btnExportPdf = document.getElementById("btn-export-pdf");
+  const btnExportDocx = document.getElementById("btn-export-docx");
   const btnCopyClip = document.getElementById("btn-copy-clip");
 
   // History elements
@@ -196,7 +197,7 @@ const formData = new FormData();
 
   // ================= DISPLAY MINUTES IN VIEWER =================
   function displayMinutes(data) {
-    currentMeetingId = data.meeting_id;
+    currentMeetingId = data.meeting_id || data.id;
     currentMarkdownContent = data.markdown || "";
 
     viewTitle.textContent = data.title;
@@ -294,25 +295,60 @@ viewActionItems.addEventListener("click", async (e) => {
   }
 });
   // ================= EXPORT ACTIONS =================
-  btnExportMd.addEventListener("click", () => {
-    if (!currentMeetingId) return;
-    window.location.href = `/api/meetings/${currentMeetingId}/export`;
-  });
-
-  if (btnExportPdf) {
-    btnExportPdf.addEventListener("click", () => {
-      if (!currentMeetingId) return;
-      console.log("Export PDF clicked. Meeting ID:", currentMeetingId);
-      window.open(`/api/minutes/${currentMeetingId}/pdf?autoprint=true`, "_blank");
+  if (btnExportMd) {
+    btnExportMd.addEventListener("click", () => {
+      if (!currentMeetingId) {
+        alert("Please load or generate meeting minutes first.");
+        return;
+      }
+      const link = document.createElement("a");
+      link.href = `/api/meetings/${encodeURIComponent(currentMeetingId)}/export`;
+      link.download = `Minutes_${currentMeetingId}.md`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     });
   }
 
-  btnCopyClip.addEventListener("click", () => {
-    if (!currentMarkdownContent) return;
-    navigator.clipboard.writeText(currentMarkdownContent).then(() => {
-      alert("Meeting minutes copied to clipboard!");
+  if (btnExportPdf) {
+    btnExportPdf.addEventListener("click", () => {
+      if (!currentMeetingId) {
+        alert("Please load or generate meeting minutes first.");
+        return;
+      }
+      console.log("Export PDF clicked. Meeting ID:", currentMeetingId);
+      window.open(`/api/minutes/${encodeURIComponent(currentMeetingId)}/pdf?autoprint=true`, "_blank");
     });
-  });
+  }
+
+  if (btnExportDocx) {
+    btnExportDocx.addEventListener("click", () => {
+      if (!currentMeetingId) {
+        alert("Please load or generate meeting minutes first.");
+        return;
+      }
+      const link = document.createElement("a");
+      link.href = `/api/meetings/${encodeURIComponent(currentMeetingId)}/export/docx`;
+      link.download = `Minutes_${currentMeetingId}.docx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+  }
+
+  if (btnCopyClip) {
+    btnCopyClip.addEventListener("click", () => {
+      if (!currentMarkdownContent) {
+        alert("No minutes content available to copy.");
+        return;
+      }
+      navigator.clipboard.writeText(currentMarkdownContent).then(() => {
+        alert("Meeting minutes copied to clipboard!");
+      }).catch(err => {
+        alert("Could not copy to clipboard: " + err);
+      });
+    });
+  }
 
   // ================= MEETING HISTORY =================
   async function loadMeetingHistory() {

@@ -58,7 +58,8 @@ from extractor import (
 from generator import (
     generate_markdown_minutes,
     generate_html_minutes,
-    generate_pdf_minutes
+    generate_pdf_minutes,
+    generate_docx_minutes
 )
 
 # Base directory setup
@@ -279,15 +280,18 @@ def export_meeting(meeting_id):
             transcript=transcript
         )
 
-        # Check if PDF format is requested
-        if request.args.get("format", "").lower() == "pdf":
+        # Check format parameter
+        fmt = request.args.get("format", "").lower()
+        if fmt == "pdf":
             return export_meeting_pdf(meeting_id)
+        if fmt == "docx":
+            return export_meeting_docx(meeting_id)
 
         filename = f"Minutes_{meeting_id}_{datetime.now().strftime('%Y%m%d')}.md"
         return Response(
             markdown_doc,
-            mimetype="text/markdown",
-            headers={"Content-Disposition": f"attachment;filename={filename}"}
+            mimetype="text/markdown; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'}
         )
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
@@ -341,6 +345,46 @@ def export_meeting_pdf(meeting_id):
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
+
+
+
+
+@app.route("/api/minutes/<int:meeting_id>/docx", methods=["GET"])
+@app.route("/api/meetings/<int:meeting_id>/docx", methods=["GET"])
+@app.route("/api/meetings/<int:meeting_id>/export/docx", methods=["GET"])
+def export_meeting_docx(meeting_id):
+    """Exports structured meeting minutes as a Word .docx document."""
+    try:
+        meeting = get_meeting(meeting_id)
+        if not meeting:
+            return jsonify({"success": False, "error": "Meeting not found."}), 404
+
+        transcript = meeting.get("processed_transcript") or meeting.get("raw_transcript") or ""
+        attendees = extract_attendees(transcript)
+        decisions = extract_decisions(transcript)
+        action_items = meeting.get("action_items", [])
+
+        docx_bio = generate_docx_minutes(
+            title=meeting["title"],
+            date=meeting["date"],
+            duration=meeting.get("duration"),
+            attendees=attendees,
+            summary=meeting.get("summary") or "No summary recorded.",
+            decisions=decisions,
+            action_items=action_items,
+        )
+
+        filename = f"Minutes_{meeting_id}_{datetime.now().strftime('%Y%m%d')}.docx"
+        audit_logger.info("Exported DOCX minutes for meeting %s.", meeting_id)
+        return send_file(
+            docx_bio,
+            mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            as_attachment=True,
+            download_name=filename,
+        )
+    except Exception as e:
+        audit_logger.exception("Failed to export DOCX for meeting %s.", meeting_id)
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/api/action-items/<int:item_id>", methods=["PUT"])
 def update_action_item(item_id):

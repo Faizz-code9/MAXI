@@ -11,6 +11,7 @@ conforming to the MiniMax standardized layout.
 from typing import Dict, List, Any, Optional
 import html
 import os
+import io
 
 
 def generate_markdown_minutes(
@@ -229,3 +230,81 @@ def generate_pdf_minutes(html_document: str) -> Optional[bytes]:
         return HTML(string=html_document).write_pdf()
     except Exception:
         return None
+
+
+def generate_docx_minutes(
+    title: str,
+    date: str,
+    duration: str,
+    attendees: List[str],
+    summary: str,
+    decisions: List[str],
+    action_items: List[Dict[str, str]],
+) -> io.BytesIO:
+    """Generates structured meeting minutes as a Word .docx document."""
+    import docx
+    from docx.shared import Inches, Pt, RGBColor
+
+    doc = docx.Document()
+
+    # Margins
+    for section in doc.sections:
+        section.top_margin = Inches(0.75)
+        section.bottom_margin = Inches(0.75)
+        section.left_margin = Inches(0.75)
+        section.right_margin = Inches(0.75)
+
+    # Title
+    title_heading = doc.add_heading(level=1)
+    run = title_heading.add_run(f"Meeting Minutes: {title}")
+    run.font.size = Pt(20)
+    run.font.color.rgb = RGBColor(67, 56, 202)
+
+    # Metadata
+    meta_p = doc.add_paragraph()
+    meta_p.add_run(f"Date: {date}   |   Duration: {duration or 'N/A'}\n").bold = True
+    attendees_str = ", ".join(attendees) if attendees else "General Team"
+    meta_p.add_run(f"Attendees: {attendees_str}")
+
+    # Executive Summary
+    doc.add_heading("Executive Summary", level=2)
+    doc.add_paragraph(summary or "No summary recorded.")
+
+    # Key Decisions
+    doc.add_heading("Key Decisions", level=2)
+    if decisions:
+        for d in decisions:
+            doc.add_paragraph(d, style="List Bullet")
+    else:
+        doc.add_paragraph("No formal decisions recorded.")
+
+    # Action Items
+    doc.add_heading("Action Items", level=2)
+    if action_items:
+        table = doc.add_table(rows=1, cols=5)
+        table.style = "Table Grid"
+        hdr_cells = table.rows[0].cells
+        hdr_cells[0].text = "#"
+        hdr_cells[1].text = "Task Description"
+        hdr_cells[2].text = "Assignee"
+        hdr_cells[3].text = "Deadline"
+        hdr_cells[4].text = "Status"
+        for cell in hdr_cells:
+            for paragraph in cell.paragraphs:
+                for r in paragraph.runs:
+                    r.font.bold = True
+
+        for idx, item in enumerate(action_items, 1):
+            row_cells = table.add_row().cells
+            row_cells[0].text = str(idx)
+            row_cells[1].text = item.get("task", "")
+            row_cells[2].text = item.get("assignee", "Unassigned")
+            row_cells[3].text = item.get("deadline", "TBD")
+            row_cells[4].text = item.get("status", "Pending")
+    else:
+        doc.add_paragraph("No action items recorded.")
+
+    bio = io.BytesIO()
+    doc.save(bio)
+    bio.seek(0)
+    return bio
