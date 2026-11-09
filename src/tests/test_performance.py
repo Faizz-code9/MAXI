@@ -122,7 +122,19 @@ def server():
     """Runs the Flask app on a free local port, threaded like production."""
     app.config["TESTING"] = True
     init_db()
-    httpd = make_server("127.0.0.1", 0, app, threaded=True)
+    # Find a free port in a safe range to avoid Windows socket error 10013
+    import socket
+    selected_port = 0
+    for p in range(5005, 5050):
+        try:
+            s = socket.socket()
+            s.bind(("127.0.0.1", p))
+            s.close()
+            selected_port = p
+            break
+        except Exception:
+            continue
+    httpd = make_server("127.0.0.1", selected_port, app, threaded=True)
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
     yield "127.0.0.1", httpd.server_port
