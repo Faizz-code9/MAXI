@@ -13,6 +13,7 @@ import os
 import sqlite3
 from datetime import datetime
 from typing import Dict, List, Optional, Any
+import bcrypt
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "minimax.db")
 
@@ -29,10 +30,22 @@ def init_db() -> None:
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # Users Table (SAD Table 22 / MM-F-016 / MM-NF-004 / MM-SR-002)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL UNIQUE,
+            name TEXT NOT NULL,
+            password_hash TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     # Meetings Table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS meetings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
             title TEXT NOT NULL,
             date TEXT NOT NULL,
             duration TEXT DEFAULT '00:00:00',
@@ -41,9 +54,19 @@ def init_db() -> None:
             processed_transcript TEXT,
             summary TEXT,
             status TEXT DEFAULT 'Uploaded',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
         )
     """)
+
+    # Migration: Ensure user_id column exists on meetings table if upgrading
+    cursor.execute("PRAGMA table_info(meetings)")
+    columns = [row["name"] for row in cursor.fetchall()]
+    if "user_id" not in columns:
+        try:
+            cursor.execute("ALTER TABLE meetings ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE SET NULL")
+        except Exception:
+            pass
 
     # Action Items Table
     cursor.execute("""
@@ -63,13 +86,71 @@ def init_db() -> None:
     conn.close()
 
 
-def create_meeting(title: str, date: str, audio_filename: Optional[str] = None, raw_transcript: str = "") -> int:
+def create_user(email: str, name: str, password: str) -> int:
+    """
+    Creates a new user account with bcrypt-hashed password.
+    Enforces MM-NF-004 & MM-SR-002: Minimum cost factor 12 (>= 10), salted.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    salt = bcrypt.gensalt(rounds=12)
+    pwd_bytes = password.encode("utf-8")
+    password_hash = bcrypt.hashpw(pwd_bytes, salt).decode("utf-8")
+
+    cursor.execute(
+        "INSERT INTO users (email, name, password_hash) VALUES (?, ?, ?)",
+        (email.strip().lower(), name.strip(), password_hash)
+    )
+    user_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return user_id
+
+
+def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
+    """Retrieves a user by email."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE LOWER(email) = ?", (email.strip().lower(),))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_user_by_id(user_id: int) -> Optional[Dict[str, Any]]:
+    """Retrieves safe user information by ID (excluding password hash)."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, email, name, created_at FROM users WHERE id = ?", (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def verify_user_password(user: Dict[str, Any], password: str) -> bool:
+    """Verifies a plaintext password against the stored bcrypt hash (MM-SR-002)."""
+    stored_hash = user.get("password_hash", "")
+    if not stored_hash:
+        return False
+    try:
+        return bcrypt.checkpw(password.encode("utf-8"), stored_hash.encode("utf-8"))
+    except Exception:
+        return False
+
+
+def create_meeting(
+    title: str,
+    date: str,
+    audio_filename: Optional[str] = None,
+    raw_transcript: str = "",
+    user_id: Optional[int] = None
+) -> int:
     """Inserts a new meeting record and returns its ID."""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO meetings (title, date, audio_filename, raw_transcript) VALUES (?, ?, ?, ?)",
-        (title, date, audio_filename, raw_transcript)
+        "INSERT INTO meetings (title, date, audio_filename, raw_transcript, user_id) VALUES (?, ?, ?, ?, ?)",
+        (title, date, audio_filename, raw_transcript, user_id)
     )
     meeting_id = cursor.lastrowid
     conn.commit()
@@ -94,11 +175,17 @@ def get_meeting(meeting_id: int) -> Optional[Dict[str, Any]]:
     return meeting
 
 
-def list_meetings() -> List[Dict[str, Any]]:
-    """Returns list of all meetings ordered by creation date desc."""
+def list_meetings(user_id: Optional[int] = None) -> List[Dict[str, Any]]:
+    """Returns list of meetings ordered by creation date desc, strictly filtered by user_id if authenticated."""
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, title, date, duration, status, created_at FROM meetings ORDER BY id DESC")
+    if user_id is not None:
+        cursor.execute(
+            "SELECT id, user_id, title, date, duration, status, created_at FROM meetings WHERE user_id = ? ORDER BY id DESC",
+            (user_id,)
+        )
+    else:
+        cursor.execute("SELECT id, user_id, title, date, duration, status, created_at FROM meetings ORDER BY id DESC")
     meetings = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return meetings

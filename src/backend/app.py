@@ -13,11 +13,12 @@ Exposes REST API endpoints defined in SAD Section 4.3:
 """
 
 import os
+import re
 import html
 import uuid
 import logging
-from datetime import datetime
-from flask import Flask, request, jsonify, render_template, send_file, Response
+from datetime import datetime, timedelta
+from flask import Flask, request, jsonify, render_template, send_file, Response, session
 from werkzeug.utils import secure_filename
 
 # Configure Audit Logger (US-17 / MM-SR-006)
@@ -45,7 +46,11 @@ from models import (
     add_action_items,
     update_action_item_status,
     update_meeting_processed,
-    get_db_connection
+    get_db_connection,
+    create_user,
+    get_user_by_email,
+    get_user_by_id,
+    verify_user_password
 )
 from transcriber import allowed_file, transcribe_audio, validate_audio_file
 from preprocessor import clean_transcript
@@ -89,8 +94,147 @@ def add_cors_headers(response):
     response.headers["X-Content-Type-Options"] = "nosniff"
     return response
 
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "minimax-secret-key-se-2026-auth")
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=30)  # MM-SR-003: 30-min session timeout
+app.config["SESSION_COOKIE_HTTPONLY"] = True  # MM-SR-003 / SAD STRIDE Spoofing mitigation
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024  # 100 MB
+
+EMAIL_REGEX = re.compile(r"^[\w\.-]+@[\w\.-]+\.\w+$")
+
+
+# ============================================================================
+# User Authentication & Account Management (MM-F-016 / MM-NF-004 / MM-SR-002)
+# ============================================================================
+
+@app.route("/api/auth/register", methods=["POST"])
+def auth_register():
+    """
+    User registration endpoint (MM-F-016 / MM-NF-004 / MM-SR-002).
+    Hashes password with bcrypt (cost factor >= 10) and creates user record.
+    """
+    if not request.is_json:
+        return jsonify({"success": False, "error": "Request body must be JSON."}), 400
+
+    data = request.get_json() or {}
+    email = data.get("email", "").strip()
+    name = data.get("name", "").strip()
+    password = data.get("password", "")
+
+    if not email or not EMAIL_REGEX.match(email):
+        return jsonify({"success": False, "error": "A valid email address is required."}), 400
+
+    if not name:
+        return jsonify({"success": False, "error": "Full name is required."}), 400
+
+    if not password or len(password) < 8:
+        return jsonify({
+            "success": False,
+            "error": "Password must be at least 8 characters long."
+        }), 400
+
+    existing_user = get_user_by_email(email)
+    if existing_user:
+        audit_logger.warning("Registration rejected: email '%s' already registered.", email)
+        return jsonify({"success": False, "error": "Email is already registered."}), 409
+
+    try:
+        user_id = create_user(email=email, name=name, password=password)
+        audit_logger.info("New user registered successfully: id=%s email='%s'.", user_id, email)
+
+        # Automatically log the newly registered user in
+        session.permanent = True
+        session["user_id"] = user_id
+        session["user_email"] = email.lower()
+        session["user_name"] = name
+
+        return jsonify({
+            "success": True,
+            "message": "User registered successfully.",
+            "user": {
+                "id": user_id,
+                "email": email.lower(),
+                "name": name
+            }
+        }), 201
+    except Exception as e:
+        audit_logger.exception("Failed to register user '%s'.", email)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/auth/login", methods=["POST"])
+def auth_login():
+    """
+    User authentication endpoint (MM-F-016 / MM-SR-002 / MM-SR-003).
+    Verifies bcrypt password and initiates 30-min HTTP-only session.
+    """
+    if not request.is_json:
+        return jsonify({"success": False, "error": "Request body must be JSON."}), 400
+
+    data = request.get_json() or {}
+    email = data.get("email", "").strip()
+    password = data.get("password", "")
+
+    if not email or not password:
+        return jsonify({"success": False, "error": "Email and password are required."}), 400
+
+    user = get_user_by_email(email)
+    if not user or not verify_user_password(user, password):
+        audit_logger.warning("Failed login attempt for email '%s'.", email)
+        return jsonify({"success": False, "error": "Invalid email or password."}), 401
+
+    session.permanent = True
+    session["user_id"] = user["id"]
+    session["user_email"] = user["email"]
+    session["user_name"] = user["name"]
+    audit_logger.info("User login successful: id=%s email='%s'.", user["id"], user["email"])
+
+    return jsonify({
+        "success": True,
+        "message": "Login successful.",
+        "user": {
+            "id": user["id"],
+            "email": user["email"],
+            "name": user["name"]
+        }
+    }), 200
+
+
+@app.route("/api/auth/logout", methods=["POST"])
+def auth_logout():
+    """
+    Logs out the current user by clearing the session (SAD Table 15 / MM-F-016).
+    """
+    user_email = session.get("user_email", "guest")
+    session.clear()
+    audit_logger.info("User logged out: email='%s'.", user_email)
+    return jsonify({"success": True, "message": "Logged out successfully."}), 200
+
+
+@app.route("/api/auth/me", methods=["GET"])
+def auth_me():
+    """
+    Returns current authentication session status and user metadata.
+    """
+    user_id = session.get("user_id")
+    if user_id:
+        user = get_user_by_id(user_id)
+        if user:
+            return jsonify({
+                "success": True,
+                "authenticated": True,
+                "user": user
+            }), 200
+        # Session references a non-existent user
+        session.clear()
+
+    return jsonify({
+        "success": True,
+        "authenticated": False,
+        "user": None
+    }), 200
 
 
 @app.errorhandler(413)
@@ -174,11 +318,13 @@ def upload_audio():
         summary = generate_executive_summary(cleaned_text, decisions, action_items)
 
         # Step 4: Persist to SQLite Database
+        user_id = session.get("user_id")
         meeting_id = create_meeting(
             title=title,
             date=meeting_date,
             audio_filename=saved_filename,
-            raw_transcript=raw_text
+            raw_transcript=raw_text,
+            user_id=user_id
         )
         update_meeting_processed(meeting_id, summary, cleaned_text)
         add_action_items(meeting_id, action_items)
@@ -216,9 +362,10 @@ def upload_audio():
 
 @app.route("/api/meetings", methods=["GET"])
 def get_meetings():
-    """Retrieves all meeting summaries for history view."""
+    """Retrieves meeting summaries for history view (scoped to user if authenticated)."""
     try:
-        meetings = list_meetings()
+        user_id = session.get("user_id")
+        meetings = list_meetings(user_id=user_id)
         return jsonify({"success": True, "meetings": meetings}), 200
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
@@ -226,11 +373,17 @@ def get_meetings():
 
 @app.route("/api/meetings/<int:meeting_id>", methods=["GET"])
 def get_meeting_details(meeting_id):
-    """Retrieves full details and action items for a single meeting."""
+    """Retrieves full details and action items for a single meeting (enforcing ownership authorization)."""
     try:
         meeting = get_meeting(meeting_id)
         if not meeting:
             return jsonify({"success": False, "error": "Meeting not found."}), 404
+
+        user_id = session.get("user_id")
+        meeting_owner_id = meeting.get("user_id")
+        if meeting_owner_id is not None and user_id is not None and meeting_owner_id != user_id:
+            audit_logger.warning("Access denied: user %s tried to access meeting %s owned by user %s.", user_id, meeting_id, meeting_owner_id)
+            return jsonify({"success": False, "error": "Access denied. You do not have permission to view this meeting."}), 403
 
         # Parse attendees and decisions dynamically if needed
         transcript = meeting.get("processed_transcript") or meeting.get("raw_transcript") or ""
@@ -259,11 +412,17 @@ def get_meeting_details(meeting_id):
 
 @app.route("/api/meetings/<int:meeting_id>/export", methods=["GET"])
 def export_meeting(meeting_id):
-    """Exports structured minutes as downloadable Markdown file."""
+    """Exports structured minutes as downloadable Markdown file (enforcing ownership authorization)."""
     try:
         meeting = get_meeting(meeting_id)
         if not meeting:
             return jsonify({"success": False, "error": "Meeting not found."}), 404
+
+        user_id = session.get("user_id")
+        meeting_owner_id = meeting.get("user_id")
+        if meeting_owner_id is not None and user_id is not None and meeting_owner_id != user_id:
+            audit_logger.warning("Access denied: user %s tried to export meeting %s owned by user %s.", user_id, meeting_id, meeting_owner_id)
+            return jsonify({"success": False, "error": "Access denied. You do not have permission to export this meeting."}), 403
 
         transcript = meeting.get("processed_transcript") or meeting.get("raw_transcript") or ""
         attendees = extract_attendees(transcript)

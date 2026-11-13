@@ -45,6 +45,30 @@ document.addEventListener("DOMContentLoaded", () => {
   const historySearch = document.getElementById("history-search");
   const historyNoResults = document.getElementById("history-no-results");
 
+  // Auth & Gateway elements (MM-F-016 / MM-NF-004)
+  const authGateway = document.getElementById("auth-gateway");
+  const appWorkspace = document.getElementById("app-workspace");
+  const navTabs = document.getElementById("nav-tabs");
+  const authLoggedOut = document.getElementById("auth-logged-out");
+  const authLoggedIn = document.getElementById("auth-logged-in");
+  const userDisplayName = document.getElementById("user-display-name");
+  const btnLogout = document.getElementById("btn-logout");
+
+  const tabLoginBtn = document.getElementById("tab-login-btn");
+  const tabRegisterBtn = document.getElementById("tab-register-btn");
+  const authAlert = document.getElementById("auth-alert");
+
+  const formLogin = document.getElementById("form-login");
+  const loginEmail = document.getElementById("login-email");
+  const loginPassword = document.getElementById("login-password");
+
+  const formRegister = document.getElementById("form-register");
+  const registerName = document.getElementById("register-name");
+  const registerEmail = document.getElementById("register-email");
+  const registerPassword = document.getElementById("register-password");
+  const registerConfirmPassword = document.getElementById("register-confirm-password");
+
+  let currentUser = null;
   let currentMeetingId = null;
   let currentMarkdownContent = "";
   let meetings = [];
@@ -110,6 +134,13 @@ document.addEventListener("DOMContentLoaded", () => {
   // ================= FORM SUBMISSION & API UPLOAD =================
   uploadForm.addEventListener("submit", async (e) => {
     e.preventDefault();
+
+    if (!currentUser) {
+      updateAuthUI();
+      showAuthAlert("Please sign in or create an account to process meeting audio.", true);
+      return;
+    }
+
     if (!audioInput.files.length) {
       alert("Please select or drop an audio file.");
       return;
@@ -453,5 +484,182 @@ viewActionItems.addEventListener("click", async (e) => {
 
   // Search by meeting title or date, including when history loads after typing.
   historySearch.addEventListener("input", renderMeetingHistory);
+
+  // ================= AUTHENTICATION LOGIC (MM-F-016 / MM-NF-004 / MM-SR-002) =================
+
+  async function checkAuthStatus() {
+    try {
+      const res = await fetch("/api/auth/me");
+      const data = await res.json();
+      if (res.ok && data.authenticated && data.user) {
+        currentUser = data.user;
+      } else {
+        currentUser = null;
+      }
+    } catch {
+      currentUser = null;
+    }
+    updateAuthUI();
+  }
+
+  function updateAuthUI() {
+    if (currentUser) {
+      // User is authenticated: Show workspace and header profile, hide gateway
+      if (authGateway) authGateway.classList.add("hidden");
+      if (appWorkspace) appWorkspace.classList.remove("hidden");
+      if (navTabs) navTabs.classList.remove("hidden");
+      if (authLoggedOut) authLoggedOut.classList.add("hidden");
+      if (authLoggedIn) authLoggedIn.classList.remove("hidden");
+      if (userDisplayName) userDisplayName.textContent = currentUser.name || currentUser.email;
+    } else {
+      // User is not authenticated: Show gateway, hide workspace and header tabs
+      if (authGateway) authGateway.classList.remove("hidden");
+      if (appWorkspace) appWorkspace.classList.add("hidden");
+      if (navTabs) navTabs.classList.add("hidden");
+      if (authLoggedIn) authLoggedIn.classList.add("hidden");
+      if (authLoggedOut) authLoggedOut.classList.remove("hidden");
+      if (userDisplayName) userDisplayName.textContent = "User";
+      switchAuthTab("login");
+    }
+  }
+
+  function switchAuthTab(tab) {
+    hideAuthAlert();
+    if (tab === "login") {
+      if (tabLoginBtn) tabLoginBtn.classList.add("active");
+      if (tabRegisterBtn) tabRegisterBtn.classList.remove("active");
+      if (formLogin) formLogin.classList.remove("hidden");
+      if (formRegister) formRegister.classList.add("hidden");
+      if (loginEmail) loginEmail.focus();
+    } else {
+      if (tabRegisterBtn) tabRegisterBtn.classList.add("active");
+      if (tabLoginBtn) tabLoginBtn.classList.remove("active");
+      if (formRegister) formRegister.classList.remove("hidden");
+      if (formLogin) formLogin.classList.add("hidden");
+      if (registerName) registerName.focus();
+    }
+  }
+
+  function showAuthAlert(message, isError = true) {
+    if (!authAlert) return;
+    authAlert.textContent = message;
+    authAlert.className = `auth-alert ${isError ? "error" : "success"}`;
+    authAlert.classList.remove("hidden");
+  }
+
+  function hideAuthAlert() {
+    if (!authAlert) return;
+    authAlert.classList.add("hidden");
+    authAlert.textContent = "";
+  }
+
+  if (tabLoginBtn) tabLoginBtn.addEventListener("click", () => switchAuthTab("login"));
+  if (tabRegisterBtn) tabRegisterBtn.addEventListener("click", () => switchAuthTab("register"));
+
+  // Form Submissions
+  if (formLogin) {
+    formLogin.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = loginEmail.value.trim();
+      const password = loginPassword.value;
+      const submitBtn = document.getElementById("btn-submit-login");
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Verifying...";
+      hideAuthAlert();
+
+      try {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || "Login failed. Please check your credentials.");
+        }
+
+        currentUser = data.user;
+        showAuthAlert("Login successful! Welcome back.", false);
+        setTimeout(() => {
+          formLogin.reset();
+          updateAuthUI();
+          switchTab("upload-tab");
+          loadMeetingHistory();
+        }, 400);
+      } catch (err) {
+        showAuthAlert(err.message, true);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Sign In";
+      }
+    });
+  }
+
+  if (formRegister) {
+    formRegister.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = registerName.value.trim();
+      const email = registerEmail.value.trim();
+      const password = registerPassword.value;
+      const confirmPassword = registerConfirmPassword.value;
+      const submitBtn = document.getElementById("btn-submit-register");
+
+      if (password !== confirmPassword) {
+        showAuthAlert("Passwords do not match.", true);
+        return;
+      }
+
+      if (password.length < 8) {
+        showAuthAlert("Password must be at least 8 characters long.", true);
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Creating Account...";
+      hideAuthAlert();
+
+      try {
+        const res = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, email, password })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || "Registration failed.");
+        }
+
+        currentUser = data.user;
+        showAuthAlert("Account created successfully! You are now logged in.", false);
+        setTimeout(() => {
+          formRegister.reset();
+          updateAuthUI();
+          switchTab("upload-tab");
+          loadMeetingHistory();
+        }, 500);
+      } catch (err) {
+        showAuthAlert(err.message, true);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Create Account";
+      }
+    });
+  }
+
+  if (btnLogout) {
+    btnLogout.addEventListener("click", async () => {
+      try {
+        await fetch("/api/auth/logout", { method: "POST" });
+      } catch (e) {
+        console.error(e);
+      }
+      currentUser = null;
+      updateAuthUI();
+    });
+  }
+
+  // Initial Auth Check on page load
+  checkAuthStatus();
 
 });
