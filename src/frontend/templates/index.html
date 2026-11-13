@@ -17,16 +17,94 @@
           <p>Automated Meeting Minutes Generator</p>
         </div>
       </div>
-      <nav class="nav-tabs">
+      <nav class="nav-tabs hidden" id="nav-tabs">
         <button class="nav-btn active" data-tab="upload-tab">Upload & Generate</button>
         <button class="nav-btn" data-tab="viewer-tab" id="nav-viewer">Minutes Viewer</button>
         <button class="nav-btn" data-tab="history-tab" id="nav-history">Meeting History</button>
       </nav>
+
+      <!-- User Account Bar (MM-F-016 / MM-NF-004) -->
+      <div class="auth-bar" id="auth-bar">
+        <!-- Guest State -->
+        <div id="auth-logged-out" class="auth-state">
+          <span class="auth-pill-notice">🔒 Sign in to access workspace</span>
+        </div>
+        <!-- Authenticated State -->
+        <div id="auth-logged-in" class="auth-state hidden">
+          <div class="user-chip">
+            <span class="user-avatar">👤</span>
+            <span class="user-name" id="user-display-name">User</span>
+          </div>
+          <button type="button" class="btn btn-logout" id="btn-logout" title="Sign Out">Sign Out</button>
+        </div>
+      </div>
     </div>
   </header>
 
   <!-- Main Content Container -->
   <main class="main-container">
+    
+    <!-- AUTHENTICATION GATEWAY (Visible first when user is not logged in) -->
+    <section id="auth-gateway" class="auth-gateway-container">
+      <div class="card auth-gate-card">
+        <div class="auth-card-header">
+          <div class="auth-gate-icon">🎙️</div>
+          <h2>Welcome to MiniMax</h2>
+          <p class="auth-subtitle">Automated Meeting Minutes Generator</p>
+          <p class="auth-desc">Please log in or register below to access audio upload, transcription, and meeting minutes generation.</p>
+        </div>
+
+        <!-- Auth Tabs: Login vs Register -->
+        <div class="auth-tab-switch">
+          <button type="button" class="auth-tab-btn active" id="tab-login-btn">Log In</button>
+          <button type="button" class="auth-tab-btn" id="tab-register-btn">Create Account</button>
+        </div>
+
+        <!-- Alert Box -->
+        <div id="auth-alert" class="auth-alert hidden"></div>
+
+        <!-- Form 1: Login Form -->
+        <form id="form-login" class="auth-form">
+          <div class="form-group">
+            <label for="login-email">Email Address</label>
+            <input type="email" id="login-email" placeholder="student@pes.edu" required autocomplete="email">
+          </div>
+          <div class="form-group">
+            <label for="login-password">Password</label>
+            <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password">
+          </div>
+          <button type="submit" id="btn-submit-login" class="btn btn-primary btn-block">Sign In</button>
+        </form>
+
+        <!-- Form 2: Register Form -->
+        <form id="form-register" class="auth-form hidden">
+          <div class="form-group">
+            <label for="register-name">Full Name</label>
+            <input type="text" id="register-name" placeholder="Mohammed Faizan" required autocomplete="name">
+          </div>
+          <div class="form-group">
+            <label for="register-email">Email Address</label>
+            <input type="email" id="register-email" placeholder="student@pes.edu" required autocomplete="email">
+          </div>
+          <div class="form-group">
+            <label for="register-password">Password (min 8 chars)</label>
+            <input type="password" id="register-password" placeholder="••••••••" required minlength="8" autocomplete="new-password">
+          </div>
+          <div class="form-group">
+            <label for="register-confirm-password">Confirm Password</label>
+            <input type="password" id="register-confirm-password" placeholder="••••••••" required minlength="8" autocomplete="new-password">
+          </div>
+          <button type="submit" id="btn-submit-register" class="btn btn-primary btn-block">Create Account</button>
+        </form>
+        
+        <div class="auth-security-notice">
+          🔒 Secure Access: Passwords encrypted with <strong>bcrypt</strong> (rounds &ge; 12) per <strong>MM-SR-002</strong> with 30-min session security (<strong>MM-SR-003</strong>).
+        </div>
+      </div>
+    </section>
+
+    <!-- APPLICATION WORKSPACE (Revealed upon successful authentication) -->
+    <div id="app-workspace" class="hidden">
     
     <!-- TAB 1: UPLOAD & GENERATE (Wireframe: wireframe_home.png) -->
     <section id="upload-tab" class="tab-content active">
@@ -185,6 +263,7 @@
       </div>
     </section>
 
+    </div> <!-- End of #app-workspace -->
   </main>
 
   <script src="/static/js/app.js"></script>
